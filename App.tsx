@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Case, CaseType, Advocate, CaseDirection } from './types';
+import { Case, CaseType, Advocate, FeePayment } from './types';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import CaseDetail from './components/CaseDetail';
@@ -137,6 +137,20 @@ const App: React.FC = () => {
     }
   }, [caseTypes]);
 
+  // Payment Handler
+  const handleAddPayment = useCallback((caseId: string, paymentData: Omit<FeePayment, 'id'>) => {
+      setCases(prevCases => {
+          return prevCases.map(c => {
+              if (c.id === caseId) {
+                  const newPayment: FeePayment = { ...paymentData, id: `fee-${crypto.randomUUID()}` };
+                  return { ...c, feePayments: [...c.feePayments, newPayment] };
+              }
+              return c;
+          });
+      });
+  }, []);
+
+
   // Memos for active items
   const activeCase = useMemo(() => cases.find(c => c.id === activeCaseId) || null, [cases, activeCaseId]);
   const activeAdvocate = useMemo(() => advocates.find(a => a.id === activeAdvocateId) || null, [advocates, activeAdvocateId]);
@@ -155,7 +169,7 @@ const App: React.FC = () => {
             return <AdvocateForm onSave={handleSaveAdvocate} onCancel={handleDeselect} initialData={editingAdvocate}/>;
         }
         if (activeAdvocate) {
-            return <AdvocateDetail advocate={activeAdvocate} cases={cases.filter(c => c.advocateId === activeAdvocate.id)} onBack={handleDeselect} onNavigateToCase={handleNavigateToCase} onEdit={handleEditAdvocate} onDelete={handleDeleteAdvocate} />;
+            return <AdvocateDetail advocate={activeAdvocate} cases={cases.filter(c => c.advocateId === activeAdvocate.id)} onBack={handleDeselect} onNavigateToCase={handleNavigateToCase} onEdit={handleEditAdvocate} onDelete={handleDeleteAdvocate} onAddPayment={handleAddPayment} />;
         }
         return <AdvocateDashboard advocates={advocates} onSelectAdvocate={handleSelectAdvocate} onNewAdvocate={handleInitiateNewAdvocate}/>;
     }

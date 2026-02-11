@@ -1,7 +1,8 @@
 
-import React, { useMemo } from 'react';
-import { Advocate, Case } from '../types';
-import { BackIcon, UserIcon, MoneyIcon, ChevronRightIcon, EditIcon, TrashIcon } from './icons';
+import React, { useMemo, useState } from 'react';
+import { Advocate, Case, FeePayment } from '../types';
+import { BackIcon, UserIcon, MoneyIcon, ChevronRightIcon, EditIcon, TrashIcon, PlusIcon } from './icons';
+import AddPaymentModal from './AddPaymentModal';
 
 interface AdvocateDetailProps {
   advocate: Advocate;
@@ -10,6 +11,7 @@ interface AdvocateDetailProps {
   onNavigateToCase: (caseId: string) => void;
   onEdit: (advocate: Advocate) => void;
   onDelete: (advocateId: string) => void;
+  onAddPayment: (caseId: string, payment: Omit<FeePayment, 'id'>) => void;
 }
 
 const InfoCard: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
@@ -22,15 +24,21 @@ const InfoCard: React.FC<{ icon: React.ReactNode; label: string; value: string }
   </div>
 );
 
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+const Section: React.FC<{ title: string; children: React.ReactNode, actions?: React.ReactNode }> = ({ title, children, actions }) => (
     <div className="mt-8">
-        <h3 className="text-lg font-semibold border-b border-slate-200 dark:border-slate-700 pb-2 mb-4 text-slate-800 dark:text-slate-200">{title}</h3>
-        {children}
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
+          {actions}
+        </div>
+        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+          {children}
+        </div>
     </div>
 );
 
 
-const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack, onNavigateToCase, onEdit, onDelete }) => {
+const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack, onNavigateToCase, onEdit, onDelete, onAddPayment }) => {
+    const [isAddingPayment, setIsAddingPayment] = useState(false);
 
     const feeSummary = useMemo(() => {
         const allPayments = cases.flatMap(c => c.feePayments);
@@ -44,8 +52,14 @@ const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack
 
         return { lifetimeTotal, monthlyTotals };
     }, [cases]);
+    
+    const handleSavePayment = (caseId: string, payment: Omit<FeePayment, 'id'>) => {
+        onAddPayment(caseId, payment);
+        setIsAddingPayment(false);
+    }
 
   return (
+    <>
     <div className="bg-white dark:bg-slate-800/50 p-6 sm:p-8 rounded-2xl shadow-lg animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -73,7 +87,15 @@ const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack
         <InfoCard icon={<MoneyIcon />} label="Lifetime Fees Paid" value={new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(feeSummary.lifetimeTotal)} />
       </div>
 
-       <Section title="Fee Summary (Monthly)">
+       <Section 
+          title="Fee Summary (Monthly)"
+          actions={
+            <button onClick={() => setIsAddingPayment(true)} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg text-sm transition-colors">
+              <PlusIcon className="h-4 w-4" />
+              Add Payment
+            </button>
+          }
+        >
             <div className="space-y-2">
                 {Object.entries(feeSummary.monthlyTotals).length > 0 ? Object.entries(feeSummary.monthlyTotals).map(([month, total]) => (
                     <div key={month} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-md">
@@ -86,7 +108,7 @@ const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack
 
        <Section title={`Cases Handled (${cases.length})`}>
           <div className="flow-root">
-              <ul role="list" className="divide-y divide-slate-200 dark:divide-slate-700">
+              <ul role="list" className="-my-2 divide-y divide-slate-200 dark:divide-slate-700">
                   {cases.map(caseItem => (
                       <li key={caseItem.id}>
                         <button onClick={() => onNavigateToCase(caseItem.id)} className="w-full flex items-center justify-between py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 px-2 -mx-2 rounded-md transition-colors">
@@ -107,6 +129,14 @@ const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack
       </Section>
 
     </div>
+    <AddPaymentModal
+      show={isAddingPayment}
+      onClose={() => setIsAddingPayment(false)}
+      onSave={handleSavePayment}
+      advocate={advocate}
+      cases={cases}
+    />
+    </>
   );
 };
 

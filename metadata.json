@@ -1,0 +1,5 @@
+{
+  "name": "Legal Case Tracker Pro",
+  "description": "An application to efficiently track and manage legal cases, including hearing dates, advocate details, fee payments, and courses of action. Features AI-powered suggestions for strategic planning.",
+  "requestFramePermissions": []
+}

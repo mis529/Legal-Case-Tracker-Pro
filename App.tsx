@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Case, CaseType, Advocate, FeePayment } from './types';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -9,39 +9,71 @@ import AdvocateDetail from './components/AdvocateDetail';
 import AdvocateForm from './components/AdvocateForm';
 
 const App: React.FC = () => {
-  const [caseTypes, setCaseTypes] = useState<CaseType[]>(() => [
-    { id: 'ct1', name: 'Recovery Suit' },
-    { id: 'ct2', name: 'Check Bounce' },
-    { id: 'ct3', name: 'GST Department' },
-    { id: 'ct4', name: 'Custom Department' },
-    { id: 'ct5', name: 'Appeal' },
-    { id: 'ct6', name: 'Other' },
-  ]);
+  const [caseTypes, setCaseTypes] = useState<CaseType[]>(() => {
+    try {
+      const saved = localStorage.getItem('caseTypes');
+      return saved ? JSON.parse(saved) : [
+        { id: 'ct1', name: 'Recovery Suit' },
+        { id: 'ct2', name: 'Check Bounce' },
+        { id: 'ct3', name: 'GST Department' },
+        { id: 'ct4', name: 'Custom Department' },
+        { id: 'ct5', name: 'Appeal' },
+        { id: 'ct6', name: 'Other' },
+      ];
+    } catch {
+      return [];
+    }
+  });
 
-  const [advocates, setAdvocates] = useState<Advocate[]>(() => [
-    { id: 'adv1', name: 'Jessica Pearson', email: 'j.pearson@specterlitt.com', phone: '555-0101' },
-    { id: 'adv2', name: 'Louis Litt', email: 'l.litt@specterlitt.com', phone: '555-0102' },
-    { id: 'adv3', name: 'Rachel Zane', email: 'r.zane@specterlitt.com', phone: '555-0103' },
-  ]);
+  const [advocates, setAdvocates] = useState<Advocate[]>(() => {
+    try {
+      const saved = localStorage.getItem('advocates');
+      return saved ? JSON.parse(saved) : [
+        { id: 'adv1', name: 'Jessica Pearson', email: 'j.pearson@specterlitt.com', phone: '555-0101' },
+        { id: 'adv2', name: 'Louis Litt', email: 'l.litt@specterlitt.com', phone: '555-0102' },
+        { id: 'adv3', name: 'Rachel Zane', email: 'r.zane@specterlitt.com', phone: '555-0103' },
+      ];
+    } catch {
+        return [];
+    }
+  });
 
   const [cases, setCases] = useState<Case[]>(() => {
-    // Lazy initializer for mock data
-    return [
-      {
-        id: '1', caseNumber: 'CS-2023-101', caseTypeId: 'ct1', courtName: 'City Civil Court, Metropolis', nextHearingDate: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(), courseOfAction: 'Submit evidence affidavit and prepare for cross-examination of the defendant.', advocateId: 'adv1', caseDirection: 'Plaintiff', personAppearing: 'Harvey Specter', advocateComments: 'Defendant seems to be looking for a settlement. We have a strong position.', feePayments: [ { id: 'fee1', amount: 5000, date: new Date().toISOString(), notes: 'Initial Retainer' }, { id: 'fee2', amount: 2500, date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), notes: 'Filing Charges' } ], createdAt: new Date().toISOString(),
-      },
-      {
-        id: '2', caseNumber: 'CR-2023-245', caseTypeId: 'ct2', courtName: 'Metropolitan Magistrate Court', nextHearingDate: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(), courseOfAction: 'Issue final legal notice before filing a criminal complaint under Section 138.', advocateId: 'adv2', caseDirection: 'Plaintiff', personAppearing: 'Mike Ross', advocateComments: 'The client has all the required documentation. A straightforward case.', feePayments: [ { id: 'fee3', amount: 7000, date: new Date().toISOString(), notes: 'Full fee paid' } ], createdAt: new Date().toISOString(),
-      },
-       {
-        id: '3', caseNumber: 'GST-APL-2024-015', caseTypeId: 'ct3', courtName: 'GST Appellate Tribunal', nextHearingDate: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(), courseOfAction: 'Review the department\'s response and prepare counter-arguments.', advocateId: 'adv3', caseDirection: 'Defendant', personAppearing: 'Rachel Zane', advocateComments: 'Need to focus on the procedural lapses by the department.', feePayments: [ { id: 'fee4', amount: 15000, date: new Date().toISOString(), notes: 'Advance for appeal' } ], createdAt: new Date().toISOString(),
-      },
-      {
-        id: '4', caseNumber: 'CIV-2024-088', caseTypeId: 'ct1', courtName: 'City Civil Court, Metropolis', nextHearingDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString(), courseOfAction: 'Awaiting defendant\'s reply to our notice.', advocateId: 'adv1', caseDirection: 'Defendant', personAppearing: 'Jessica Pearson', advocateComments: 'The opposing counsel is known for delay tactics.', feePayments: [ { id: 'fee5', amount: 8000, date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), notes: 'Appearance Fee' } ], createdAt: new Date().toISOString(),
-      }
-    ];
+    try {
+        const saved = localStorage.getItem('cases');
+        return saved ? JSON.parse(saved) : [
+          {
+            id: '1', caseNumber: 'CS-2023-101', caseTypeId: 'ct1', courtName: 'City Civil Court, Metropolis', nextHearingDate: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(), courseOfAction: 'Submit evidence affidavit and prepare for cross-examination of the defendant.', advocateId: 'adv1', caseDirection: 'Plaintiff', personAppearing: 'Harvey Specter', advocateComments: 'Defendant seems to be looking for a settlement. We have a strong position.', feePayments: [ { id: 'fee1', amount: 5000, date: new Date().toISOString(), notes: 'Initial Retainer' }, { id: 'fee2', amount: 2500, date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), notes: 'Filing Charges' } ], createdAt: new Date().toISOString(),
+          },
+          {
+            id: '2', caseNumber: 'CR-2023-245', caseTypeId: 'ct2', courtName: 'Metropolitan Magistrate Court', nextHearingDate: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(), courseOfAction: 'Issue final legal notice before filing a criminal complaint under Section 138.', advocateId: 'adv2', caseDirection: 'Plaintiff', personAppearing: 'Mike Ross', advocateComments: 'The client has all the required documentation. A straightforward case.', feePayments: [ { id: 'fee3', amount: 7000, date: new Date().toISOString(), notes: 'Full fee paid' } ], createdAt: new Date().toISOString(),
+          },
+           {
+            id: '3', caseNumber: 'GST-APL-2024-015', caseTypeId: 'ct3', courtName: 'GST Appellate Tribunal', nextHearingDate: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(), courseOfAction: 'Review the department\'s response and prepare counter-arguments.', advocateId: 'adv3', caseDirection: 'Defendant', personAppearing: 'Rachel Zane', advocateComments: 'Need to focus on the procedural lapses by the department.', feePayments: [ { id: 'fee4', amount: 15000, date: new Date().toISOString(), notes: 'Advance for appeal' } ], createdAt: new Date().toISOString(),
+          },
+          {
+            id: '4', caseNumber: 'CIV-2024-088', caseTypeId: 'ct1', courtName: 'City Civil Court, Metropolis', nextHearingDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString(), courseOfAction: 'Awaiting defendant\'s reply to our notice.', advocateId: 'adv1', caseDirection: 'Defendant', personAppearing: 'Jessica Pearson', advocateComments: 'The opposing counsel is known for delay tactics.', feePayments: [ { id: 'fee5', amount: 8000, date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), notes: 'Appearance Fee' } ], createdAt: new Date().toISOString(),
+          }
+        ];
+    } catch {
+        return [];
+    }
   });
   
+  // Effects to persist state to localStorage
+  useEffect(() => {
+    localStorage.setItem('cases', JSON.stringify(cases));
+  }, [cases]);
+
+  useEffect(() => {
+    localStorage.setItem('advocates', JSON.stringify(advocates));
+  }, [advocates]);
+
+  useEffect(() => {
+    localStorage.setItem('caseTypes', JSON.stringify(caseTypes));
+  }, [caseTypes]);
+
+
   const [currentView, setCurrentView] = useState<'cases' | 'advocates'>('cases');
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
   const [activeAdvocateId, setActiveAdvocateId] = useState<string | null>(null);

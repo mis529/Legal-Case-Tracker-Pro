@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { Advocate, Case, FeePayment } from '../types';
 import { BackIcon, UserIcon, MoneyIcon, ChevronRightIcon, EditIcon, TrashIcon, PlusIcon } from './icons';
@@ -44,7 +43,8 @@ const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack
         const allPayments = cases.flatMap(c => c.feePayments);
         const lifetimeTotal = allPayments.reduce((sum, p) => sum + p.amount, 0);
 
-        // FIX: Explicitly type the accumulator for the `reduce` function to ensure `monthlyTotals` is correctly typed.
+        // FIX: Explicitly type the `reduce` accumulator to ensure `monthlyTotals` is correctly typed as `Record<string, number>`.
+        // This resolves the issue where `total` was inferred as `unknown` later on.
         const monthlyTotals = allPayments.reduce<Record<string, number>>((acc, payment) => {
             const monthYear = new Date(payment.date).toLocaleString('default', { month: 'long', year: 'numeric' });
             acc[monthYear] = (acc[monthYear] || 0) + payment.amount;

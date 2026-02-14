@@ -27,8 +27,13 @@ export async function suggestCourseOfAction(caseTypeName: string): Promise<strin
       },
     });
 
-    const jsonText = response.text.trim();
-    const result = JSON.parse(jsonText);
+    const jsonText = response.text;
+    if (!jsonText) {
+      console.warn("Gemini API returned an empty response.");
+      return [];
+    }
+    
+    const result = JSON.parse(jsonText.trim());
     
     if (result && Array.isArray(result.suggestions)) {
         return result.suggestions;

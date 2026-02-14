@@ -44,11 +44,12 @@ const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack
         const allPayments = cases.flatMap(c => c.feePayments);
         const lifetimeTotal = allPayments.reduce((sum, p) => sum + p.amount, 0);
 
-        const monthlyTotals = allPayments.reduce((acc, payment) => {
+        // FIX: Explicitly type the accumulator for the `reduce` function to ensure `monthlyTotals` is correctly typed.
+        const monthlyTotals = allPayments.reduce<Record<string, number>>((acc, payment) => {
             const monthYear = new Date(payment.date).toLocaleString('default', { month: 'long', year: 'numeric' });
             acc[monthYear] = (acc[monthYear] || 0) + payment.amount;
             return acc;
-        }, {} as Record<string, number>);
+        }, {});
 
         return { lifetimeTotal, monthlyTotals };
     }, [cases]);

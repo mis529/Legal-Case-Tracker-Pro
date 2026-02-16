@@ -51,7 +51,7 @@ const App: React.FC = () => {
   const [lastSynced, setLastSynced] = useState<string | null>(() => localStorage.getItem('lastSynced'));
   const [isSyncing, setIsSyncing] = useState(false);
   
-  // Persistence effects
+  // Persistence effects for local storage backup
   useEffect(() => { localStorage.setItem('cases', JSON.stringify(cases)); }, [cases]);
   useEffect(() => { localStorage.setItem('advocates', JSON.stringify(advocates)); }, [advocates]);
   useEffect(() => { localStorage.setItem('caseTypes', JSON.stringify(caseTypes)); }, [caseTypes]);
@@ -62,17 +62,23 @@ const App: React.FC = () => {
     const loadData = async () => {
       try {
         const data = await loadFromGoogleSheets();
-        if (data) {
-            if (data.cases && data.cases.length > 0) setCases(data.cases);
-            if (data.advocates && data.advocates.length > 0) setAdvocates(data.advocates);
-            if (data.caseTypes && data.caseTypes.length > 0) setCaseTypes(data.caseTypes);
+        if (data && (data.cases || data.advocates || data.caseTypes)) {
+            console.log("Cloud data found, merging with local state...");
+            if (data.cases) setCases(data.cases);
+            if (data.advocates) setAdvocates(data.advocates);
+            if (data.caseTypes) setCaseTypes(data.caseTypes);
             setLastSynced(new Date().toLocaleTimeString());
+        } else {
+            console.log("No valid cloud data found, using local storage.");
         }
       } catch (error) {
-        console.log("Using local data: No cloud data found or script not configured.");
+        console.warn("Could not load from cloud. Using local storage as fallback.");
       }
     };
-    loadData();
+    
+    // Small delay to ensure browser network stack is fully ready
+    const timer = setTimeout(loadData, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   const [currentView, setCurrentView] = useState<'cases' | 'advocates'>('cases');
@@ -195,9 +201,9 @@ const App: React.FC = () => {
     try {
         await syncToGoogleSheets({ cases, advocates, caseTypes });
         setLastSynced(new Date().toLocaleTimeString());
-        alert('Cloud sync successful! Your data is safe in Google Sheets.');
+        alert('Cloud sync triggered! Your data is being sent to Google Sheets.\n\nNote: Changes might take a moment to appear in the sheet cell.');
     } catch (err: any) {
-        alert(err.message || 'Sync failed. Please check your script URL configuration.');
+        alert(err.message || 'Sync failed. Check your browser console for more details.');
     } finally {
         setIsSyncing(false);
     }

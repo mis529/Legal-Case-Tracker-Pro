@@ -1,12 +1,17 @@
 
 import { Case, Advocate, CaseType } from '../types';
 
+/**
+ * Your specific Google Apps Script Web App URL.
+ * Ensure this script is deployed as a Web App, executed as 'Me', and accessible by 'Anyone'.
+ */
 const GOOGLE_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbzv4-T02kNSWpN71l-JIhatqameuMyLVHtOTNaFmaNrA-yAyP0nO8IXUoZWbFAuHGsh/exec";
+  "https://script.google.com/macros/s/AKfycbzExvIQYIRie4-NB3UVqjpZyuXlDEpONI8OBjTSr7TdsxZXRBvlE-4tR23gBUaWOW1O/exec";
 
 /**
  * SAVE DATA TO GOOGLE SHEETS
- * Uses 'no-cors' mode to bypass CORS preflight issues common with Google Apps Script.
+ * Uses 'no-cors' mode to bypass CORS preflight (OPTIONS) issues.
+ * This sends the data as a string to your Google Script's doPost(e) function.
  */
 export async function syncToGoogleSheets(data: {
   cases: Case[],
@@ -14,38 +19,51 @@ export async function syncToGoogleSheets(data: {
   caseTypes: CaseType[]
 }) {
   try {
-    // We use text/plain or no-cors to avoid the OPTIONS preflight which GAS doesn't handle well
+    console.log("Cloud Sync: Sending data...");
+    
+    // We send data as a simple string to avoid triggering a preflight request
+    // that Google Apps Script Web Apps often do not handle correctly.
     await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
       mode: "no-cors", 
+      cache: "no-cache",
       headers: {
-        "Content-Type": "text/plain", // Using text/plain avoids preflight but we send JSON string
+        "Content-Type": "text/plain", 
       },
       body: JSON.stringify(data),
     });
 
-    // Since mode is 'no-cors', we can't read the response body. 
-    // If it didn't throw an exception, the request was successfully dispatched.
+    console.log("Cloud Sync: Request sent successfully.");
     return { status: "success" };
   } catch (error) {
-    console.error("POST error:", error);
-    throw new Error("Failed to reach the cloud service. Please check your internet or script URL.");
+    console.error("Cloud Sync POST Error:", error);
+    throw new Error("Failed to reach the cloud service. Please check your internet connection and script deployment settings.");
   }
 }
 
 /**
  * LOAD DATA FROM GOOGLE SHEETS
+ * Fetches the current state from your Google Script's doGet(e) function.
  */
 export async function loadFromGoogleSheets() {
   try {
-    const response = await fetch(GOOGLE_SCRIPT_URL);
-    if (!response.ok) throw new Error("Cloud service responded with an error.");
+    console.log("Cloud Load: Fetching data...");
+    
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'GET',
+        cache: 'no-cache'
+    });
+
+    if (!response.ok) {
+        throw new Error(`Cloud server returned status ${response.status}`);
+    }
     
     const result = await response.json();
-    console.log("GET result:", result);
+    console.log("Cloud Load: Success.", result);
     return result;
   } catch (error) {
-    console.error("GET error:", error);
-    throw error;
+    console.warn("Cloud Load Error:", error);
+    // Returning null allows the app to fallback gracefully to LocalStorage
+    return null;
   }
 }

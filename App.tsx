@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Case, CaseType, Advocate, FeePayment } from './types';
 import Header from './components/Header';
@@ -182,6 +181,25 @@ const App: React.FC = () => {
       });
   }, []);
 
+  // EXPORT DATA: "Take out all the data"
+  const handleExportData = useCallback(() => {
+    const data = {
+        cases,
+        advocates,
+        caseTypes,
+        exportDate: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `legal_tracker_export_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [cases, advocates, caseTypes]);
+
 
   // Memos for active items
   const activeCase = useMemo(() => cases.find(c => c.id === activeCaseId) || null, [cases, activeCaseId]);
@@ -232,7 +250,12 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans">
-      <Header currentView={currentView} setCurrentView={setCurrentView} onDeselect={handleDeselect} />
+      <Header 
+        currentView={currentView} 
+        setCurrentView={setCurrentView} 
+        onDeselect={handleDeselect} 
+        onExport={handleExportData}
+      />
       <main className="p-4 sm:p-6 md:p-8">
         {renderContent()}
       </main>

@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { Advocate, Case, FeePayment } from '../types';
 import { BackIcon, UserIcon, MoneyIcon, ChevronRightIcon, EditIcon, TrashIcon, PlusIcon } from './icons';
@@ -43,13 +44,13 @@ const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack
         const allPayments = cases.flatMap(c => c.feePayments);
         const lifetimeTotal = allPayments.reduce((sum, p) => sum + p.amount, 0);
 
-        // FIX: Explicitly type the `reduce` accumulator to ensure `monthlyTotals` is correctly typed as `Record<string, number>`.
+        // Explicitly type the `reduce` accumulator to ensure `monthlyTotals` is correctly typed as `Record<string, number>`.
         // This resolves the issue where `total` was inferred as `unknown` later on.
-        const monthlyTotals = allPayments.reduce<Record<string, number>>((acc, payment) => {
+        const monthlyTotals = allPayments.reduce((acc, payment) => {
             const monthYear = new Date(payment.date).toLocaleString('default', { month: 'long', year: 'numeric' });
             acc[monthYear] = (acc[monthYear] || 0) + payment.amount;
             return acc;
-        }, {});
+        }, {} as Record<string, number>);
 
         return { lifetimeTotal, monthlyTotals };
     }, [cases]);
@@ -98,10 +99,11 @@ const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack
           }
         >
             <div className="space-y-2">
+                {/* FIX: Explicitly cast total to number as TypeScript might infer it as unknown from Object.entries */}
                 {Object.entries(feeSummary.monthlyTotals).length > 0 ? Object.entries(feeSummary.monthlyTotals).map(([month, total]) => (
                     <div key={month} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-md">
                         <span className="font-medium text-slate-600 dark:text-slate-300">{month}</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-100">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(total)}</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-100">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(total as number)}</span>
                     </div>
                 )) : <p className="text-center text-slate-500 py-4">No payments recorded.</p>}
             </div>

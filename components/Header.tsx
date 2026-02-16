@@ -1,11 +1,11 @@
-
 import React from 'react';
-import { GavelIcon, BriefcaseIcon } from './icons';
+import { GavelIcon, BriefcaseIcon, DownloadIcon } from './icons';
 
 interface HeaderProps {
     currentView: 'cases' | 'advocates';
     setCurrentView: (view: 'cases' | 'advocates') => void;
     onDeselect: () => void;
+    onExport: () => void;
 }
 
 const NavButton: React.FC<{ isActive: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ isActive, onClick, icon, label }) => (
@@ -23,7 +23,7 @@ const NavButton: React.FC<{ isActive: boolean; onClick: () => void; icon: React.
 );
 
 
-const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect }) => {
+const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect, onExport }) => {
   const handleViewChange = (view: 'cases' | 'advocates') => {
     onDeselect();
     setCurrentView(view);
@@ -35,8 +35,8 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-3">
             <GavelIcon className="h-8 w-8 text-blue-600 dark:text-blue-500" />
-            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
-              Legal Case Tracker Pro
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white truncate">
+              Legal Case Pro
             </h1>
           </div>
           <nav className="flex items-center gap-2">
@@ -52,6 +52,13 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
                 icon={<BriefcaseIcon className="h-5 w-5" />}
                 label="Advocates"
             />
+            <button 
+                onClick={onExport}
+                className="ml-2 p-2 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors"
+                title="Export all data"
+            >
+                <DownloadIcon className="h-5 w-5" />
+            </button>
           </nav>
         </div>
       </div>

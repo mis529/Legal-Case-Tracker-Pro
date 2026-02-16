@@ -63,21 +63,16 @@ const App: React.FC = () => {
       try {
         const data = await loadFromGoogleSheets();
         if (data && (data.cases || data.advocates || data.caseTypes)) {
-            console.log("Cloud data found, merging with local state...");
             if (data.cases) setCases(data.cases);
             if (data.advocates) setAdvocates(data.advocates);
             if (data.caseTypes) setCaseTypes(data.caseTypes);
             setLastSynced(new Date().toLocaleTimeString());
-        } else {
-            console.log("No valid cloud data found, using local storage.");
         }
       } catch (error) {
-        console.warn("Could not load from cloud. Using local storage as fallback.");
+        console.log("No cloud data yet. Using local data.");
       }
     };
-    
-    // Small delay to ensure browser network stack is fully ready
-    const timer = setTimeout(loadData, 500);
+    const timer = setTimeout(loadData, 800);
     return () => clearTimeout(timer);
   }, []);
 
@@ -128,6 +123,8 @@ const App: React.FC = () => {
     });
     setActiveCaseId(caseToSave.id);
     setIsCreatingNewCase(false);
+    // Suggest sync
+    console.log("Case saved locally. Use the Cloud button to back up to Google Sheets.");
   }, []);
 
   const handleDeleteCase = useCallback((caseId: string) => {
@@ -201,9 +198,9 @@ const App: React.FC = () => {
     try {
         await syncToGoogleSheets({ cases, advocates, caseTypes });
         setLastSynced(new Date().toLocaleTimeString());
-        alert('Cloud sync triggered! Your data is being sent to Google Sheets.\n\nNote: Changes might take a moment to appear in the sheet cell.');
+        alert('Sync Successful! Your data has been uploaded to Google Sheets.');
     } catch (err: any) {
-        alert(err.message || 'Sync failed. Check your browser console for more details.');
+        alert('Sync Error: ' + (err.message || 'Check your internet and Script URL.'));
     } finally {
         setIsSyncing(false);
     }

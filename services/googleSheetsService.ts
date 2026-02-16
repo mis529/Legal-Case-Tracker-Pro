@@ -6,7 +6,7 @@ const GOOGLE_SCRIPT_URL =
 
 /**
  * SAVE DATA TO GOOGLE SHEETS
- * Uses URLSearchParams to send a "Simple Request" that bypasses CORS.
+ * This sends the raw JSON string to the doPost(e) function in Google Apps Script.
  */
 export async function syncToGoogleSheets(data: {
   cases: Case[],
@@ -14,27 +14,28 @@ export async function syncToGoogleSheets(data: {
   caseTypes: CaseType[]
 }) {
   try {
-    console.log("Cloud Sync: Initiating transfer...");
+    console.log("Cloud Sync: Dispatching raw data payload...");
     
-    // We wrap the JSON in a form field named 'json'. 
-    // This is the most compatible way for Google Apps Script to receive data.
-    const formData = new URLSearchParams();
-    formData.append('json', JSON.stringify(data));
+    const payload = JSON.stringify(data);
 
+    // Using 'no-cors' and 'text/plain' makes this a 'Simple Request'
+    // This allows the request to reach Google's servers even without 
+    // explicit CORS headers from the script.
     await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
-      mode: "no-cors", // Necessary for Google Apps Script
+      mode: "no-cors", 
+      cache: "no-cache",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "text/plain", 
       },
-      body: formData.toString(),
+      body: payload,
     });
 
-    console.log("Cloud Sync: Data sent to Google Sheets.");
+    console.log("Cloud Sync: Data dispatched to Google Sheets via raw payload.");
     return { status: "success" };
   } catch (error) {
     console.error("Cloud Sync Error:", error);
-    throw new Error("Cloud connection failed. Verify your Script URL and Deployment settings.");
+    throw new Error("Unable to reach Google Sheets. Please ensure your script is deployed as 'Anyone'.");
   }
 }
 
@@ -43,19 +44,22 @@ export async function syncToGoogleSheets(data: {
  */
 export async function loadFromGoogleSheets() {
   try {
-    console.log("Cloud Load: Fetching latest data...");
+    console.log("Cloud Load: Fetching state...");
     const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: 'GET',
         cache: 'no-cache'
     });
 
-    if (!response.ok) throw new Error(`Server error: ${response.status}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
-    const result = await response.json();
-    console.log("Cloud Load: Successfully retrieved data.");
+    const text = await response.text();
+    if (!text || text.trim() === "") return null;
+    
+    const result = JSON.parse(text);
+    console.log("Cloud Load: Data retrieved and parsed.");
     return result;
   } catch (error) {
-    console.warn("Cloud Load: Could not retrieve data (this is normal if no data has been synced yet).", error);
+    console.warn("Cloud Load: Error (Expected if new sheet):", error);
     return null;
   }
 }

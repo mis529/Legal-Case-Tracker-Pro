@@ -6,6 +6,7 @@ import CaseDetail from './components/CaseDetail';
 import AdvocateDashboard from './components/AdvocateDashboard';
 import AdvocateDetail from './components/AdvocateDetail';
 import AdvocateForm from './components/AdvocateForm';
+import { syncToGoogleSheets, loadFromGoogleSheets } from './services/googleSheetsService';
 
 const App: React.FC = () => {
   const [caseTypes, setCaseTypes] = useState<CaseType[]>(() => {
@@ -59,18 +60,36 @@ const App: React.FC = () => {
     }
   });
   
-  // Effects to persist state to localStorage
-  useEffect(() => {
-    localStorage.setItem('cases', JSON.stringify(cases));
-  }, [cases]);
+  // Persistence effects
+  useEffect(() => { localStorage.setItem('cases', JSON.stringify(cases)); }, [cases]);
+  useEffect(() => { localStorage.setItem('advocates', JSON.stringify(advocates)); }, [advocates]);
+  useEffect(() => { localStorage.setItem('caseTypes', JSON.stringify(caseTypes)); }, [caseTypes]);
 
-  useEffect(() => {
-    localStorage.setItem('advocates', JSON.stringify(advocates));
-  }, [advocates]);
+// 🔹 Load data from Google Sheets when app starts
+useEffect(() => {
+  const loadData = async () => {
+    try {
+      const data = await loadFromGoogleSheets();
 
-  useEffect(() => {
-    localStorage.setItem('caseTypes', JSON.stringify(caseTypes));
-  }, [caseTypes]);
+      if (data.cases && data.cases.length > 0) {
+        setCases(data.cases);
+      }
+
+      if (data.advocates && data.advocates.length > 0) {
+        setAdvocates(data.advocates);
+      }
+
+      if (data.caseTypes && data.caseTypes.length > 0) {
+        setCaseTypes(data.caseTypes);
+      }
+
+    } catch (error) {
+      console.log("No cloud data found or script not configured.");
+    }
+  };
+
+  loadData();
+}, []);
 
 
   const [currentView, setCurrentView] = useState<'cases' | 'advocates'>('cases');
@@ -79,6 +98,7 @@ const App: React.FC = () => {
   const [isCreatingNewCase, setIsCreatingNewCase] = useState<boolean>(false);
   const [isCreatingNewAdvocate, setIsCreatingNewAdvocate] = useState<boolean>(false);
   const [editingAdvocate, setEditingAdvocate] = useState<Advocate | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
 
   const [filters, setFilters] = useState({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All' });
@@ -181,14 +201,9 @@ const App: React.FC = () => {
       });
   }, []);
 
-  // EXPORT DATA: "Take out all the data"
+  // Export & Cloud Sync Handlers
   const handleExportData = useCallback(() => {
-    const data = {
-        cases,
-        advocates,
-        caseTypes,
-        exportDate: new Date().toISOString()
-    };
+    const data = { cases, advocates, caseTypes, exportDate: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -198,6 +213,18 @@ const App: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  }, [cases, advocates, caseTypes]);
+
+  const handleCloudSync = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+        await syncToGoogleSheets({ cases, advocates, caseTypes });
+        alert('Data synced to Google Sheets successfully!');
+    } catch (err: any) {
+        alert(err.message || 'Failed to sync to Google Sheets. Check your script URL configuration.');
+    } finally {
+        setIsSyncing(false);
+    }
   }, [cases, advocates, caseTypes]);
 
 
@@ -224,7 +251,6 @@ const App: React.FC = () => {
         return <AdvocateDashboard advocates={advocates} onSelectAdvocate={handleSelectAdvocate} onNewAdvocate={handleInitiateNewAdvocate}/>;
     }
 
-    // Default to 'cases' view
     if (isCreatingNewCase || activeCase) {
         return <CaseDetail
             caseData={activeCase}
@@ -255,6 +281,8 @@ const App: React.FC = () => {
         setCurrentView={setCurrentView} 
         onDeselect={handleDeselect} 
         onExport={handleExportData}
+        onCloudSync={handleCloudSync}
+        isSyncing={isSyncing}
       />
       <main className="p-4 sm:p-6 md:p-8">
         {renderContent()}

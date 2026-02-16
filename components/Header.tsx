@@ -1,11 +1,13 @@
 import React from 'react';
-import { GavelIcon, BriefcaseIcon, DownloadIcon } from './icons';
+import { GavelIcon, BriefcaseIcon, DownloadIcon, CloudIcon } from './icons';
 
 interface HeaderProps {
     currentView: 'cases' | 'advocates';
     setCurrentView: (view: 'cases' | 'advocates') => void;
     onDeselect: () => void;
     onExport: () => void;
+    onCloudSync: () => void;
+    isSyncing: boolean;
 }
 
 const NavButton: React.FC<{ isActive: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ isActive, onClick, icon, label }) => (
@@ -23,7 +25,7 @@ const NavButton: React.FC<{ isActive: boolean; onClick: () => void; icon: React.
 );
 
 
-const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect, onExport }) => {
+const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect, onExport, onCloudSync, isSyncing }) => {
   const handleViewChange = (view: 'cases' | 'advocates') => {
     onDeselect();
     setCurrentView(view);
@@ -39,26 +41,39 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
               Legal Case Pro
             </h1>
           </div>
-          <nav className="flex items-center gap-2">
-            <NavButton 
-                isActive={currentView === 'cases'} 
-                onClick={() => handleViewChange('cases')}
-                icon={<GavelIcon className="h-5 w-5" />}
-                label="Cases"
-            />
-             <NavButton 
-                isActive={currentView === 'advocates'} 
-                onClick={() => handleViewChange('advocates')}
-                icon={<BriefcaseIcon className="h-5 w-5" />}
-                label="Advocates"
-            />
-            <button 
-                onClick={onExport}
-                className="ml-2 p-2 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors"
-                title="Export all data"
-            >
-                <DownloadIcon className="h-5 w-5" />
-            </button>
+          <nav className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+                <NavButton 
+                    isActive={currentView === 'cases'} 
+                    onClick={() => handleViewChange('cases')}
+                    icon={<GavelIcon className="h-5 w-5" />}
+                    label="Cases"
+                />
+                <NavButton 
+                    isActive={currentView === 'advocates'} 
+                    onClick={() => handleViewChange('advocates')}
+                    icon={<BriefcaseIcon className="h-5 w-5" />}
+                    label="Advocates"
+                />
+            </div>
+            
+            <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-4">
+                <button 
+                    onClick={onCloudSync}
+                    disabled={isSyncing}
+                    className={`p-2 transition-colors ${isSyncing ? 'text-blue-400 animate-pulse' : 'text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400'}`}
+                    title="Sync to Google Sheets"
+                >
+                    <CloudIcon className="h-5 w-5" />
+                </button>
+                <button 
+                    onClick={onExport}
+                    className="p-2 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors"
+                    title="Export backup (.json)"
+                >
+                    <DownloadIcon className="h-5 w-5" />
+                </button>
+            </div>
           </nav>
         </div>
       </div>

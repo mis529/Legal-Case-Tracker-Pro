@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Case, CaseType, Advocate, FeePayment } from './types';
 import Header from './components/Header';
@@ -41,56 +42,38 @@ const App: React.FC = () => {
   const [cases, setCases] = useState<Case[]>(() => {
     try {
         const saved = localStorage.getItem('cases');
-        return saved ? JSON.parse(saved) : [
-          {
-            id: '1', caseNumber: 'CS-2023-101', caseTypeId: 'ct1', courtName: 'City Civil Court, Metropolis', nextHearingDate: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(), courseOfAction: 'Submit evidence affidavit and prepare for cross-examination of the defendant.', advocateId: 'adv1', caseDirection: 'Plaintiff', personAppearing: 'Harvey Specter', advocateComments: 'Defendant seems to be looking for a settlement. We have a strong position.', feePayments: [ { id: 'fee1', amount: 5000, date: new Date().toISOString(), notes: 'Initial Retainer' }, { id: 'fee2', amount: 2500, date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), notes: 'Filing Charges' } ], createdAt: new Date().toISOString(),
-          },
-          {
-            id: '2', caseNumber: 'CR-2023-245', caseTypeId: 'ct2', courtName: 'Metropolitan Magistrate Court', nextHearingDate: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(), courseOfAction: 'Issue final legal notice before filing a criminal complaint under Section 138.', advocateId: 'adv2', caseDirection: 'Plaintiff', personAppearing: 'Mike Ross', advocateComments: 'The client has all the required documentation. A straightforward case.', feePayments: [ { id: 'fee3', amount: 7000, date: new Date().toISOString(), notes: 'Full fee paid' } ], createdAt: new Date().toISOString(),
-          },
-           {
-            id: '3', caseNumber: 'GST-APL-2024-015', caseTypeId: 'ct3', courtName: 'GST Appellate Tribunal', nextHearingDate: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(), courseOfAction: 'Review the department\'s response and prepare counter-arguments.', advocateId: 'adv3', caseDirection: 'Defendant', personAppearing: 'Rachel Zane', advocateComments: 'Need to focus on the procedural lapses by the department.', feePayments: [ { id: 'fee4', amount: 15000, date: new Date().toISOString(), notes: 'Advance for appeal' } ], createdAt: new Date().toISOString(),
-          },
-          {
-            id: '4', caseNumber: 'CIV-2024-088', caseTypeId: 'ct1', courtName: 'City Civil Court, Metropolis', nextHearingDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString(), courseOfAction: 'Awaiting defendant\'s reply to our notice.', advocateId: 'adv1', caseDirection: 'Defendant', personAppearing: 'Jessica Pearson', advocateComments: 'The opposing counsel is known for delay tactics.', feePayments: [ { id: 'fee5', amount: 8000, date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), notes: 'Appearance Fee' } ], createdAt: new Date().toISOString(),
-          }
-        ];
+        return saved ? JSON.parse(saved) : [];
     } catch {
         return [];
     }
   });
+
+  const [lastSynced, setLastSynced] = useState<string | null>(() => localStorage.getItem('lastSynced'));
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Persistence effects
   useEffect(() => { localStorage.setItem('cases', JSON.stringify(cases)); }, [cases]);
   useEffect(() => { localStorage.setItem('advocates', JSON.stringify(advocates)); }, [advocates]);
   useEffect(() => { localStorage.setItem('caseTypes', JSON.stringify(caseTypes)); }, [caseTypes]);
+  useEffect(() => { if (lastSynced) localStorage.setItem('lastSynced', lastSynced); }, [lastSynced]);
 
-// 🔹 Load data from Google Sheets when app starts
-useEffect(() => {
-  const loadData = async () => {
-    try {
-      const data = await loadFromGoogleSheets();
-
-      if (data.cases && data.cases.length > 0) {
-        setCases(data.cases);
+  // Load data from Google Sheets when app starts
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await loadFromGoogleSheets();
+        if (data) {
+            if (data.cases && data.cases.length > 0) setCases(data.cases);
+            if (data.advocates && data.advocates.length > 0) setAdvocates(data.advocates);
+            if (data.caseTypes && data.caseTypes.length > 0) setCaseTypes(data.caseTypes);
+            setLastSynced(new Date().toLocaleTimeString());
+        }
+      } catch (error) {
+        console.log("Using local data: No cloud data found or script not configured.");
       }
-
-      if (data.advocates && data.advocates.length > 0) {
-        setAdvocates(data.advocates);
-      }
-
-      if (data.caseTypes && data.caseTypes.length > 0) {
-        setCaseTypes(data.caseTypes);
-      }
-
-    } catch (error) {
-      console.log("No cloud data found or script not configured.");
-    }
-  };
-
-  loadData();
-}, []);
-
+    };
+    loadData();
+  }, []);
 
   const [currentView, setCurrentView] = useState<'cases' | 'advocates'>('cases');
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
@@ -98,12 +81,9 @@ useEffect(() => {
   const [isCreatingNewCase, setIsCreatingNewCase] = useState<boolean>(false);
   const [isCreatingNewAdvocate, setIsCreatingNewAdvocate] = useState<boolean>(false);
   const [editingAdvocate, setEditingAdvocate] = useState<Advocate | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-
 
   const [filters, setFilters] = useState({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All' });
 
-  // Navigation and Selection handlers
   const handleSelectCase = useCallback((caseId: string) => {
     setActiveCaseId(caseId);
     setIsCreatingNewCase(false);
@@ -129,7 +109,6 @@ useEffect(() => {
     setActiveCaseId(caseId);
   }, [handleDeselect]);
 
-  // Case handlers
   const handleInitiateNewCase = useCallback(() => {
     handleDeselect();
     setIsCreatingNewCase(true);
@@ -150,7 +129,6 @@ useEffect(() => {
     if (activeCaseId === caseId) handleDeselect();
   }, [activeCaseId, handleDeselect]);
   
-  // Advocate Handlers
   const handleInitiateNewAdvocate = useCallback(() => {
     handleDeselect();
     setIsCreatingNewAdvocate(true);
@@ -180,7 +158,6 @@ useEffect(() => {
     if (activeAdvocateId === advocateId) handleDeselect();
   }, [cases, activeAdvocateId, handleDeselect]);
 
-  // Case Type Handlers
   const handleAddCaseType = useCallback((name: string) => {
     if (name && !caseTypes.some(ct => ct.name.toLowerCase() === name.toLowerCase())) {
         const newCaseType: CaseType = { id: `ct-${Date.now()}`, name };
@@ -188,7 +165,6 @@ useEffect(() => {
     }
   }, [caseTypes]);
 
-  // Payment Handler
   const handleAddPayment = useCallback((caseId: string, paymentData: Omit<FeePayment, 'id'>) => {
       setCases(prevCases => {
           return prevCases.map(c => {
@@ -201,7 +177,6 @@ useEffect(() => {
       });
   }, []);
 
-  // Export & Cloud Sync Handlers
   const handleExportData = useCallback(() => {
     const data = { cases, advocates, caseTypes, exportDate: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -219,16 +194,15 @@ useEffect(() => {
     setIsSyncing(true);
     try {
         await syncToGoogleSheets({ cases, advocates, caseTypes });
-        alert('Data synced to Google Sheets successfully!');
+        setLastSynced(new Date().toLocaleTimeString());
+        alert('Cloud sync successful! Your data is safe in Google Sheets.');
     } catch (err: any) {
-        alert(err.message || 'Failed to sync to Google Sheets. Check your script URL configuration.');
+        alert(err.message || 'Sync failed. Please check your script URL configuration.');
     } finally {
         setIsSyncing(false);
     }
   }, [cases, advocates, caseTypes]);
 
-
-  // Memos for active items
   const activeCase = useMemo(() => cases.find(c => c.id === activeCaseId) || null, [cases, activeCaseId]);
   const activeAdvocate = useMemo(() => advocates.find(a => a.id === activeAdvocateId) || null, [advocates, activeAdvocateId]);
 
@@ -273,7 +247,6 @@ useEffect(() => {
     />
   }
 
-
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans">
       <Header 
@@ -283,6 +256,7 @@ useEffect(() => {
         onExport={handleExportData}
         onCloudSync={handleCloudSync}
         isSyncing={isSyncing}
+        lastSynced={lastSynced}
       />
       <main className="p-4 sm:p-6 md:p-8">
         {renderContent()}

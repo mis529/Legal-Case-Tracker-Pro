@@ -1,52 +1,51 @@
+
 import { Case, Advocate, CaseType } from '../types';
 
-// This is your configured Google Script URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv4-T02kNSWpN71l-JIhatqameuMyLVHtOTNaFmaNrA-yAyP0nO8IXUoZWbFAuHGsh/exec';
+const GOOGLE_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbzv4-T02kNSWpN71l-JIhatqameuMyLVHtOTNaFmaNrA-yAyP0nO8IXUoZWbFAuHGsh/exec";
 
 /**
- * Sends the current application state to Google Sheets.
+ * SAVE DATA TO GOOGLE SHEETS
+ * Uses 'no-cors' mode to bypass CORS preflight issues common with Google Apps Script.
  */
-export async function syncToGoogleSheets(data: { cases: Case[], advocates: Advocate[], caseTypes: CaseType[] }) {
-  // Only throw if it's still the original "YOUR_URL" placeholder (preventing accidental errors)
-  if (GOOGLE_SCRIPT_URL.includes('YOUR_GOOGLE_SCRIPT_WEB_APP_URL_HERE')) {
-    throw new Error('Please configure your Google Script URL in services/googleSheetsService.ts');
-  }
-
+export async function syncToGoogleSheets(data: {
+  cases: Case[],
+  advocates: Advocate[],
+  caseTypes: CaseType[]
+}) {
   try {
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors', // Apps script requires no-cors for standard POST triggers from browser
+    // We use text/plain or no-cors to avoid the OPTIONS preflight which GAS doesn't handle well
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors", 
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "text/plain", // Using text/plain avoids preflight but we send JSON string
       },
       body: JSON.stringify(data),
     });
 
-    // With no-cors, we can't read the response status directly, but the execution happens.
-    return true;
+    // Since mode is 'no-cors', we can't read the response body. 
+    // If it didn't throw an exception, the request was successfully dispatched.
+    return { status: "success" };
   } catch (error) {
-    console.error('Error syncing to Google Sheets:', error);
-    throw error;
+    console.error("POST error:", error);
+    throw new Error("Failed to reach the cloud service. Please check your internet or script URL.");
   }
 }
 
 /**
- * Loads the application state from Google Sheets.
+ * LOAD DATA FROM GOOGLE SHEETS
  */
-export async function loadFromGoogleSheets(): Promise<{ cases?: Case[], advocates?: Advocate[], caseTypes?: CaseType[] }> {
-  if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_GOOGLE_SCRIPT_WEB_APP_URL_HERE')) {
-    return {};
-  }
-
+export async function loadFromGoogleSheets() {
   try {
     const response = await fetch(GOOGLE_SCRIPT_URL);
-    if (!response.ok) {
-        throw new Error('Failed to fetch from Google Sheets');
-    }
-    const data = await response.json();
-    return data || {};
+    if (!response.ok) throw new Error("Cloud service responded with an error.");
+    
+    const result = await response.json();
+    console.log("GET result:", result);
+    return result;
   } catch (error) {
-    console.error('Error loading from Google Sheets:', error);
-    return {};
+    console.error("GET error:", error);
+    throw error;
   }
 }

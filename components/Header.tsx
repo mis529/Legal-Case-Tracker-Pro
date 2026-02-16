@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { GavelIcon, BriefcaseIcon, DownloadIcon, CloudIcon } from './icons';
 
@@ -8,6 +9,7 @@ interface HeaderProps {
     onExport: () => void;
     onCloudSync: () => void;
     isSyncing: boolean;
+    lastSynced: string | null;
 }
 
 const NavButton: React.FC<{ isActive: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ isActive, onClick, icon, label }) => (
@@ -25,7 +27,7 @@ const NavButton: React.FC<{ isActive: boolean; onClick: () => void; icon: React.
 );
 
 
-const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect, onExport, onCloudSync, isSyncing }) => {
+const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect, onExport, onCloudSync, isSyncing, lastSynced }) => {
   const handleViewChange = (view: 'cases' | 'advocates') => {
     onDeselect();
     setCurrentView(view);
@@ -38,11 +40,11 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
           <div className="flex items-center space-x-3">
             <GavelIcon className="h-8 w-8 text-blue-600 dark:text-blue-500" />
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white truncate">
-              Legal Case Pro
+              Legal Tracker Pro
             </h1>
           </div>
-          <nav className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <nav className="flex items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-1 sm:gap-2">
                 <NavButton 
                     isActive={currentView === 'cases'} 
                     onClick={() => handleViewChange('cases')}
@@ -57,18 +59,29 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
                 />
             </div>
             
-            <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-4">
+            <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-2 sm:pl-4">
+                <div className="flex flex-col items-end mr-1 hidden sm:flex">
+                    {lastSynced && (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                            Synced {lastSynced}
+                        </span>
+                    )}
+                </div>
                 <button 
                     onClick={onCloudSync}
                     disabled={isSyncing}
-                    className={`p-2 transition-colors ${isSyncing ? 'text-blue-400 animate-pulse' : 'text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400'}`}
-                    title="Sync to Google Sheets"
+                    className={`p-2 rounded-full transition-all ${
+                        isSyncing 
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 animate-spin-slow' 
+                        : 'text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                    title="Sync to Cloud (Google Sheets)"
                 >
                     <CloudIcon className="h-5 w-5" />
                 </button>
                 <button 
                     onClick={onExport}
-                    className="p-2 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors"
+                    className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
                     title="Export backup (.json)"
                 >
                     <DownloadIcon className="h-5 w-5" />

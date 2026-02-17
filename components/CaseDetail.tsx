@@ -12,6 +12,7 @@ interface CaseDetailProps {
   onSave: (caseToSave: Case) => void;
   onBack: () => void;
   onDelete: (caseId: string) => void;
+  onAddCaseType: (name: string) => string;
 }
 
 const InfoCard: React.FC<{ icon: React.ReactNode; label: string; value: string | React.ReactNode }> = ({ icon, label, value }) => (
@@ -34,7 +35,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 );
 
 
-const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes, courtNames, onSave, onBack, onDelete }) => {
+const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes, courtNames, onSave, onBack, onDelete, onAddCaseType }) => {
   const [isEditing, setIsEditing] = useState<boolean>(!caseData);
 
   const handleSave = (updatedCase: Case) => {
@@ -45,7 +46,7 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes,
   const totalFeesPaid = caseData?.feePayments.reduce((sum, p) => sum + p.amount, 0) || 0;
 
   if (isEditing) {
-    return <CaseForm initialData={caseData} advocates={advocates} caseTypes={caseTypes} courtNames={courtNames} onSave={handleSave} onCancel={caseData ? () => setIsEditing(false) : onBack} />;
+    return <CaseForm initialData={caseData} advocates={advocates} caseTypes={caseTypes} courtNames={courtNames} onSave={handleSave} onCancel={caseData ? () => setIsEditing(false) : onBack} onAddCaseType={onAddCaseType} />;
   }
 
   if (!caseData) return null;

@@ -11,6 +11,7 @@ interface CaseFormProps {
   courtNames: string[];
   onSave: (caseData: Case) => void;
   onCancel: () => void;
+  onAddCaseType: (name: string) => string;
 }
 
 const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string }> = ({ label, ...props }) => (
@@ -36,7 +37,7 @@ const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { label: 
     </div>
 );
 
-const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, courtNames, onSave, onCancel }) => {
+const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, courtNames, onSave, onCancel, onAddCaseType }) => {
     const [formData, setFormData] = useState<Omit<Case, 'id' | 'createdAt'>>(() => initialData ? { ...initialData } : {
         caseNumber: '',
         caseTypeId: caseTypes[0]?.id || '',
@@ -53,14 +54,17 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
     const [isSuggesting, setIsSuggesting] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [isCustomCourt, setIsCustomCourt] = useState(false);
+    const [isCustomCaseType, setIsCustomCaseType] = useState(false);
+    const [customCaseTypeName, setCustomCaseTypeName] = useState('');
 
-    // Fixed: Logic for handling special "CUSTOM_ENTRY" dropdown selection moved here.
-    // This avoids render-time state updates which caused the 'void' type error and performance issues.
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         if (name === 'courtName' && value === 'CUSTOM_ENTRY') {
             setIsCustomCourt(true);
             setFormData(prev => ({ ...prev, courtName: '' }));
+        } else if (name === 'caseTypeId' && value === 'CUSTOM_TYPE_ENTRY') {
+            setIsCustomCaseType(true);
+            setFormData(prev => ({ ...prev, caseTypeId: '' }));
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
@@ -104,8 +108,15 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        let finalTypeId = formData.caseTypeId;
+        if (isCustomCaseType && customCaseTypeName.trim()) {
+            finalTypeId = onAddCaseType(customCaseTypeName);
+        }
+
         const caseToSave: Case = {
             ...formData,
+            caseTypeId: finalTypeId,
             id: initialData?.id || crypto.randomUUID(),
             createdAt: initialData?.createdAt || new Date().toISOString(),
         };
@@ -118,9 +129,36 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input label="Case Number" name="caseNumber" value={formData.caseNumber} onChange={handleChange} required />
-                <Select label="Case Type" name="caseTypeId" value={formData.caseTypeId} onChange={handleChange}>
-                    {caseTypes.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
-                </Select>
+                
+                <div className="relative">
+                    {!isCustomCaseType ? (
+                        <div className="flex flex-col">
+                            <Select label="Case Type" name="caseTypeId" value={formData.caseTypeId} onChange={handleChange} required>
+                                <option value="">Select Case Type</option>
+                                {caseTypes.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
+                                <option value="CUSTOM_TYPE_ENTRY">+ Add Other Case Type</option>
+                            </Select>
+                            <button 
+                                type="button" 
+                                onClick={() => setIsCustomCaseType(true)} 
+                                className="text-[10px] text-blue-500 text-left mt-1 hover:underline"
+                            >
+                                New category? Click here.
+                            </button>
+                        </div>
+                    ) : (
+                        <div>
+                            <Input label="Custom Case Type" name="customCaseType" value={customCaseTypeName} onChange={(e) => setCustomCaseTypeName(e.target.value)} required />
+                            <button 
+                                type="button" 
+                                onClick={() => setIsCustomCaseType(false)} 
+                                className="text-[10px] text-blue-500 text-left mt-1 hover:underline"
+                            >
+                                Back to list
+                            </button>
+                        </div>
+                    )}
+                </div>
                 
                 <div className="relative">
                     {!isCustomCourt && courtNames.length > 0 ? (

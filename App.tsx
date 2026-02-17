@@ -68,20 +68,30 @@ const App: React.FC = () => {
     setIsSyncing(true);
     try {
       const data = await loadFromGoogleSheets();
+      // If data is null, the fetch failed
       if (data) {
-        if (data.cases && data.cases.length > 0) {
-          isInitialLoadRef.current = true; 
-          setCases(data.cases);
-          setAdvocates(data.advocates || []);
-          if (data.caseTypes && data.caseTypes.length > 0) setCaseTypes(data.caseTypes);
-          if (data.courtNames && data.courtNames.length > 0) setCourtNames(data.courtNames);
-          
-          setLastSynced(`Synced ${new Date().toLocaleTimeString()}`);
-          setTimeout(() => { isInitialLoadRef.current = false; }, 1500);
-          if (!isInitial) {
-             // Silence success alert for seamless feel
-          }
+        // IMPORTANT: We overwrite even if data.cases is empty, 
+        // which allows the app to reflect a cleared spreadsheet.
+        isInitialLoadRef.current = true; 
+        
+        setCases(data.cases || []);
+        setAdvocates(data.advocates || []);
+        
+        if (data.caseTypes && data.caseTypes.length > 0) {
+            setCaseTypes(prev => {
+                // Merge cloud types with existing types to avoid losing IDs
+                const existingNames = new Set(prev.map(t => t.name.toLowerCase()));
+                const newTypes = data.caseTypes.filter(t => !existingNames.has(t.name.toLowerCase()));
+                return [...prev, ...newTypes];
+            });
         }
+        
+        if (data.courtNames && data.courtNames.length > 0) {
+            setCourtNames(prev => Array.from(new Set([...prev, ...data.courtNames])));
+        }
+        
+        setLastSynced(`Refreshed ${new Date().toLocaleTimeString()}`);
+        setTimeout(() => { isInitialLoadRef.current = false; }, 1500);
       }
     } catch (error) {
       console.error("Cloud load error:", error);
@@ -187,9 +197,17 @@ const App: React.FC = () => {
   }, []);
 
   const handleAddCaseType = useCallback((name: string) => {
-    const newType: CaseType = { id: `ct-${Date.now()}`, name };
+    const normalizedName = name.trim();
+    if (!normalizedName) return '';
+    
+    // Check if it already exists
+    const existing = caseTypes.find(t => t.name.toLowerCase() === normalizedName.toLowerCase());
+    if (existing) return existing.id;
+
+    const newType: CaseType = { id: `ct-${Date.now()}`, name: normalizedName };
     setCaseTypes(prev => [...prev, newType]);
-  }, []);
+    return newType.id;
+  }, [caseTypes]);
 
   const handleAddPayment = useCallback((caseId: string, payment: Omit<FeePayment, 'id'>) => {
     setCases(prev => prev.map(c => {
@@ -250,13 +268,14 @@ const App: React.FC = () => {
               onSave={handleSaveCase} 
               onBack={handleDeselect}
               onDelete={handleDeleteCase}
+              onAddCaseType={handleAddCaseType}
             />
           ) : (
             <Dashboard 
               cases={filteredCases} 
               allCases={cases} 
               caseTypes={caseTypes} 
-              onAddCaseType={handleAddCaseType}
+              onAddCaseType={(name) => handleAddCaseType(name)}
               onSelectCase={handleSelectCase}
               onNewCase={handleInitiateNewCase}
               filters={filters}

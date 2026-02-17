@@ -5,8 +5,10 @@ const GOOGLE_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbzExvIQYIRie4-NB3UVqjpZyuXlDEpONI8OBjTSr7TdsxZXRBvlE-4tR23gBUaWOW1O/exec";
 
 /**
- * SAVE DATA TO GOOGLE SHEETS
- * This sends the raw JSON string to the doPost(e) function in Google Apps Script.
+ * SYNC DATA TO GOOGLE SHEETS
+ * Matches your GAS doPost(e) logic:
+ * - Sends JSON.stringify({ cases, advocates, caseTypes })
+ * - Uses 'text/plain' to bypass CORS preflight and reach e.postData.contents
  */
 export async function syncToGoogleSheets(data: {
   cases: Case[],
@@ -14,13 +16,18 @@ export async function syncToGoogleSheets(data: {
   caseTypes: CaseType[]
 }) {
   try {
-    console.log("Cloud Sync: Dispatching raw data payload...");
+    console.log("Cloud Sync: Preparing structured payload for multi-sheet save...");
     
-    const payload = JSON.stringify(data);
+    // Ensure the payload structure matches what the GAS script expects
+    const payload = JSON.stringify({
+      cases: data.cases || [],
+      advocates: data.advocates || [],
+      caseTypes: data.caseTypes || []
+    });
 
-    // Using 'no-cors' and 'text/plain' makes this a 'Simple Request'
-    // This allows the request to reach Google's servers even without 
-    // explicit CORS headers from the script.
+    // We use 'no-cors' for POST to Google Apps Script. 
+    // This allows the request to be sent and executed on the server, 
+    // even if the browser doesn't let us read the 'Success' response body.
     await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
       mode: "no-cors", 
@@ -31,35 +38,42 @@ export async function syncToGoogleSheets(data: {
       body: payload,
     });
 
-    console.log("Cloud Sync: Data dispatched to Google Sheets via raw payload.");
+    console.log("Cloud Sync: Payload delivered to Google Script. Check your 'Cases', 'Advocates', and 'CaseTypes' tabs.");
     return { status: "success" };
   } catch (error) {
     console.error("Cloud Sync Error:", error);
-    throw new Error("Unable to reach Google Sheets. Please ensure your script is deployed as 'Anyone'.");
+    throw new Error("Connection failed. Check your internet and ensure the Script is deployed as 'Anyone'.");
   }
 }
 
 /**
  * LOAD DATA FROM GOOGLE SHEETS
+ * Matches your GAS doGet() logic:
+ * - Fetches structured JSON { cases, advocates, caseTypes }
  */
 export async function loadFromGoogleSheets() {
   try {
-    console.log("Cloud Load: Fetching state...");
+    console.log("Cloud Load: Fetching structured data from sheets...");
+    
+    // For GET, we need 'cors' to read the returned JSON
     const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: 'GET',
         cache: 'no-cache'
     });
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
     
-    const text = await response.text();
-    if (!text || text.trim() === "") return null;
+    const result = await response.json();
     
-    const result = JSON.parse(text);
-    console.log("Cloud Load: Data retrieved and parsed.");
-    return result;
+    // Validate that we received the expected structure
+    if (result && (result.cases || result.advocates || result.caseTypes)) {
+      console.log("Cloud Load: Successfully synchronized with Google Sheets.");
+      return result;
+    }
+    
+    return null;
   } catch (error) {
-    console.warn("Cloud Load: Error (Expected if new sheet):", error);
+    console.warn("Cloud Load: No data found or connection issue. Using local storage.", error);
     return null;
   }
 }

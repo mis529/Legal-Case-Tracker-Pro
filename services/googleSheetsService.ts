@@ -3,29 +3,20 @@ import { Case, Advocate, CaseType, FeePayment, CaseDirection } from '../types';
 
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzExvIQYIRie4-NB3UVqjpZyuXlDEpONI8OBjTSr7TdsxZXRBvlE-4tR23gBUaWOW1O/exec";
 
-/**
- * STRIPS literal quotes and trims whitespace from spreadsheet data
- */
 function cleanValue(val: any): any {
   if (typeof val === 'string') {
-    // Remove literal double quotes at start/end or escaped quotes
     return val.replace(/^"|"$/g, '').replace(/\\"/g, '"').trim();
   }
   return val;
 }
 
-/**
- * HELPER: Deeply search for a value in an object using multiple possible key variations.
- */
 function fuzzyGet(obj: any, keys: string[]): any {
   if (!obj) return undefined;
   const normalizedObj: Record<string, any> = {};
-  
   Object.keys(obj).forEach(k => {
     const cleanK = k.toString().toLowerCase().replace(/[\s_]/g, '');
     normalizedObj[cleanK] = obj[k];
   });
-  
   for (const key of keys) {
     const cleanKey = key.toLowerCase().replace(/[\s_]/g, '');
     if (normalizedObj[cleanKey] !== undefined) return cleanValue(normalizedObj[cleanKey]);
@@ -33,9 +24,6 @@ function fuzzyGet(obj: any, keys: string[]): any {
   return undefined;
 }
 
-/**
- * SAFE DATE PARSER: Handles garbage like "jjjhj"
- */
 function safeDate(dateStr: any): string {
   const cleaned = cleanValue(dateStr);
   if (!cleaned) return new Date().toISOString();
@@ -43,9 +31,6 @@ function safeDate(dateStr: any): string {
   return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
-/**
- * SYNC DATA TO GOOGLE SHEETS
- */
 export async function syncToGoogleSheets(data: {
   cases: Case[],
   advocates: Advocate[],
@@ -72,12 +57,17 @@ export async function syncToGoogleSheets(data: {
         "Mobile": adv.phone || "",
         "_id": adv.id
       })),
-      payments: data.cases.flatMap(c => c.feePayments.map(p => ({
-        "Case No": c.caseNumber,
-        "Amount": p.amount,
-        "Paid Date": p.date,
-        "Mode": p.notes || ""
-      }))),
+      // This sends payments to the spreadsheet under key 'payments'
+      payments: data.cases.flatMap(c => c.feePayments.map(p => {
+        const advObj = data.advocates.find(a => a.id === c.advocateId);
+        return {
+          "Case No": c.caseNumber,
+          "Advocate": advObj?.name || "Unknown",
+          "Amount": p.amount,
+          "Paid Date": p.date,
+          "Mode": p.notes || ""
+        };
+      })),
       timestamp: new Date().toISOString()
     });
 
@@ -96,9 +86,6 @@ export async function syncToGoogleSheets(data: {
   }
 }
 
-/**
- * LOAD DATA FROM GOOGLE SHEETS
- */
 export async function loadFromGoogleSheets() {
   try {
     const response = await fetch(`${GOOGLE_SCRIPT_URL}?t=${Date.now()}`, {
@@ -110,11 +97,7 @@ export async function loadFromGoogleSheets() {
     if (!response.ok) throw new Error(`Google Script returned HTTP ${response.status}`);
     
     let text = await response.text();
-    console.debug("Cloud Raw Response:", text);
-    
-    // FIX: If response contains multiple JSON objects concatenated (e.g. {}{}), take only the first one
     if (text.includes('}{')) {
-        console.warn("Detected corrupted/concatenated JSON response. Attempting to fix...");
         text = text.split('}{')[0] + '}';
     }
 
@@ -122,21 +105,14 @@ export async function loadFromGoogleSheets() {
     try {
         result = JSON.parse(text);
     } catch (e) {
-        console.error("Failed to parse Cloud JSON. Trying to fix quotes...");
-        try {
-            // Last ditch effort: replace potential issues
-            result = JSON.parse(text.replace(/\\"/g, '"'));
-        } catch (e2) {
-            return null;
-        }
+        return null;
     }
 
     if (!result || !result.cases) return null;
 
-    // 1. Process Advocates
     const advocates: Advocate[] = (result.advocates || []).map((a: any, idx: number) => {
         const name = fuzzyGet(a, ["Advocate Name", "Advocate", "Name"]) || "Unknown Advocate";
-        if (name === "" || name === '""') return null; // Skip empty rows
+        if (name === "" || name === '""') return null;
         return {
             id: cleanValue(a._id) || `adv-cloud-${idx}`,
             name: name,
@@ -145,20 +121,22 @@ export async function loadFromGoogleSheets() {
         };
     }).filter(Boolean) as Advocate[];
 
-    // 2. Extract unique Case Types from the Cases sheet
-    const rawCases = result.cases || [];
-    const typeNames = Array.from(new Set(rawCases.map((c: any) => 
-        fuzzyGet(c, ["Case Type", "Type"]) || "General"
-    )));
-    
-    const caseTypes: CaseType[] = typeNames.map(name => ({
-        id: `ct-${String(name).toLowerCase().replace(/\s+/g, '-')}`,
-        name: String(name)
-    }));
+    const cloudTypes = result.types || [];
+    const extractedCaseTypes = Array.from(new Set(cloudTypes.map((t: any) => fuzzyGet(t, ["Case Type"])).filter(Boolean)));
+    const extractedCourts = Array.from(new Set(cloudTypes.map((t: any) => fuzzyGet(t, ["Court Name"])).filter(Boolean)));
 
-    // 3. Process Cases
+    const caseTypes: CaseType[] = extractedCaseTypes.length > 0 
+        ? extractedCaseTypes.map((name: any) => ({
+            id: `ct-${String(name).toLowerCase().replace(/\s+/g, '-')}`,
+            name: String(name)
+          }))
+        : Array.from(new Set(result.cases.map((c: any) => fuzzyGet(c, ["Case Type", "Type"]) || "General"))).map(name => ({
+            id: `ct-${String(name).toLowerCase().replace(/\s+/g, '-')}`,
+            name: String(name)
+          }));
+
     const paymentsRaw = result.payments || [];
-    const cases: Case[] = rawCases.map((c: any, idx: number) => {
+    const cases: Case[] = result.cases.map((c: any, idx: number) => {
         const caseNo = String(fuzzyGet(c, ["Case No", "Case Number"])) || `Row-${idx + 1}`;
         const advName = fuzzyGet(c, ["Advocate"]);
         const typeName = fuzzyGet(c, ["Case Type", "Type"]) || "General";
@@ -191,7 +169,12 @@ export async function loadFromGoogleSheets() {
         };
     });
 
-    return { cases, advocates, caseTypes };
+    return { 
+        cases, 
+        advocates, 
+        caseTypes,
+        courtNames: extractedCourts as string[] 
+    };
   } catch (error) {
     console.error("Cloud Load Failure:", error);
     return null;

@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { Case, CaseType, FeePayment, Advocate, CaseDirection } from '../types';
 import { suggestCourseOfAction } from '../services/geminiService';
@@ -7,6 +8,7 @@ interface CaseFormProps {
   initialData: Case | null;
   advocates: Advocate[];
   caseTypes: CaseType[];
+  courtNames: string[];
   onSave: (caseData: Case) => void;
   onCancel: () => void;
 }
@@ -34,7 +36,7 @@ const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { label: 
     </div>
 );
 
-const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, onSave, onCancel }) => {
+const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, courtNames, onSave, onCancel }) => {
     const [formData, setFormData] = useState<Omit<Case, 'id' | 'createdAt'>>(() => initialData ? { ...initialData } : {
         caseNumber: '',
         caseTypeId: caseTypes[0]?.id || '',
@@ -50,10 +52,18 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
     
     const [isSuggesting, setIsSuggesting] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [isCustomCourt, setIsCustomCourt] = useState(false);
 
+    // Fixed: Logic for handling special "CUSTOM_ENTRY" dropdown selection moved here.
+    // This avoids render-time state updates which caused the 'void' type error and performance issues.
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        if (name === 'courtName' && value === 'CUSTOM_ENTRY') {
+            setIsCustomCourt(true);
+            setFormData(prev => ({ ...prev, courtName: '' }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,7 +96,6 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
             setSuggestions(result);
         } catch (error) {
             console.error("Error getting suggestions:", error);
-            // FIX: Per @google/genai guidelines, do not mention API key to the user.
             alert("Could not fetch suggestions. Please try again later.");
         } finally {
             setIsSuggesting(false);
@@ -112,9 +121,42 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
                 <Select label="Case Type" name="caseTypeId" value={formData.caseTypeId} onChange={handleChange}>
                     {caseTypes.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
                 </Select>
-                <Input label="Court Name" name="courtName" value={formData.courtName} onChange={handleChange} required />
+                
+                <div className="relative">
+                    {!isCustomCourt && courtNames.length > 0 ? (
+                        <div className="flex flex-col">
+                            <Select label="Court Name" name="courtName" value={formData.courtName} onChange={handleChange} required>
+                                <option value="">Select Court</option>
+                                {courtNames.map(court => <option key={court} value={court}>{court}</option>)}
+                                <option value="CUSTOM_ENTRY">+ Add Other Court</option>
+                            </Select>
+                            <button 
+                                type="button" 
+                                onClick={() => setIsCustomCourt(true)} 
+                                className="text-[10px] text-blue-500 text-left mt-1 hover:underline"
+                            >
+                                Can't find court? Click here.
+                            </button>
+                        </div>
+                    ) : (
+                        <div>
+                            <Input label="Court Name" name="courtName" value={formData.courtName} onChange={handleChange} required />
+                            {courtNames.length > 0 && (
+                                <button 
+                                    type="button" 
+                                    onClick={() => setIsCustomCourt(false)} 
+                                    className="text-[10px] text-blue-500 text-left mt-1 hover:underline"
+                                >
+                                    Back to list
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+
                 <Input label="Next Hearing Date" name="nextHearingDate" type="date" value={new Date(formData.nextHearingDate).toISOString().split('T')[0]} onChange={handleDateChange} required />
                 <Select label="Advocate" name="advocateId" value={formData.advocateId} onChange={handleChange} required>
+                    <option value="">Select Advocate</option>
                     {advocates.map(adv => <option key={adv.id} value={adv.id}>{adv.name}</option>)}
                 </Select>
                  <Select label="Case Direction" name="caseDirection" value={formData.caseDirection} onChange={handleChange} required>

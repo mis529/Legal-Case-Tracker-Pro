@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Case, CaseType, Advocate, FeePayment } from './types';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -26,6 +26,15 @@ const App: React.FC = () => {
     }
   });
 
+  const [courtNames, setCourtNames] = useState<string[]>(() => {
+    try {
+        const saved = localStorage.getItem('courtNames');
+        return saved ? JSON.parse(saved) : [];
+    } catch {
+        return [];
+    }
+  });
+
   const [advocates, setAdvocates] = useState<Advocate[]>(() => {
     try {
       const saved = localStorage.getItem('advocates');
@@ -46,10 +55,13 @@ const App: React.FC = () => {
 
   const [lastSynced, setLastSynced] = useState<string | null>(() => localStorage.getItem('lastSynced'));
   const [isSyncing, setIsSyncing] = useState(false);
+  const isInitialLoadRef = useRef(true);
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   useEffect(() => { localStorage.setItem('cases', JSON.stringify(cases)); }, [cases]);
   useEffect(() => { localStorage.setItem('advocates', JSON.stringify(advocates)); }, [advocates]);
   useEffect(() => { localStorage.setItem('caseTypes', JSON.stringify(caseTypes)); }, [caseTypes]);
+  useEffect(() => { localStorage.setItem('courtNames', JSON.stringify(courtNames)); }, [courtNames]);
   useEffect(() => { if (lastSynced) localStorage.setItem('lastSynced', lastSynced); }, [lastSynced]);
 
   const handleCloudLoad = useCallback(async (isInitial = false) => {
@@ -57,24 +69,23 @@ const App: React.FC = () => {
     try {
       const data = await loadFromGoogleSheets();
       if (data) {
-        // If the cloud has content, we replace. If cloud is empty but we have local, we keep local.
-        const hasCloudContent = (data.cases && data.cases.length > 0);
-        
-        if (hasCloudContent) {
+        if (data.cases && data.cases.length > 0) {
+          isInitialLoadRef.current = true; 
           setCases(data.cases);
           setAdvocates(data.advocates || []);
-          setCaseTypes(data.caseTypes || []);
-          setLastSynced(`Loaded at ${new Date().toLocaleTimeString()}`);
-          if (!isInitial) alert(`Successfully loaded ${data.cases.length} cases from the cloud.`);
-        } else if (!isInitial) {
-          alert("Connected to cloud, but no case data was found in your spreadsheet.");
+          if (data.caseTypes && data.caseTypes.length > 0) setCaseTypes(data.caseTypes);
+          if (data.courtNames && data.courtNames.length > 0) setCourtNames(data.courtNames);
+          
+          setLastSynced(`Synced ${new Date().toLocaleTimeString()}`);
+          setTimeout(() => { isInitialLoadRef.current = false; }, 1500);
+          if (!isInitial) {
+             // Silence success alert for seamless feel
+          }
         }
-      } else if (!isInitial) {
-        alert("Failed to connect to Google Sheets. Please ensure your script is deployed as a Web App for 'Anyone'.");
       }
     } catch (error) {
       console.error("Cloud load error:", error);
-      if (!isInitial) alert("A network error occurred while loading data.");
+      isInitialLoadRef.current = false;
     } finally {
       setIsSyncing(false);
     }
@@ -82,8 +93,28 @@ const App: React.FC = () => {
 
   useEffect(() => {
     handleCloudLoad(true);
-  }, [handleCloudLoad]); 
+  }, [handleCloudLoad]);
 
+  useEffect(() => {
+    if (isInitialLoadRef.current) return;
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+
+    syncTimeoutRef.current = setTimeout(async () => {
+      setIsSyncing(true);
+      try {
+        await syncToGoogleSheets({ cases, advocates, caseTypes });
+        setLastSynced(`Saved ${new Date().toLocaleTimeString()}`);
+      } catch (error) {
+        console.error("Auto-sync error:", error);
+      } finally {
+        setIsSyncing(false);
+      }
+    }, 2500); 
+
+    return () => {
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    };
+  }, [cases, advocates, caseTypes]);
 
   const [currentView, setCurrentView] = useState<'cases' | 'advocates'>('cases');
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
@@ -172,27 +203,13 @@ const App: React.FC = () => {
     }));
   }, []);
 
-  const handleCloudSync = async () => {
-    setIsSyncing(true);
-    try {
-      await syncToGoogleSheets({ cases, advocates, caseTypes });
-      setLastSynced(`Synced at ${new Date().toLocaleTimeString()}`);
-      alert("Sync request sent. Please allow a few moments for the Google Sheet to update.");
-    } catch (error) {
-      console.error("Sync failed:", error);
-      alert("Cloud sync failed. Check your network or Google Script deployment.");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   const handleExport = useCallback(() => {
     const data = { cases, advocates, caseTypes, lastSynced };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `legal-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `legal-tracker-export.json`;
     a.click();
     URL.revokeObjectURL(url);
   }, [cases, advocates, caseTypes, lastSynced]);
@@ -216,10 +233,10 @@ const App: React.FC = () => {
         setCurrentView={setCurrentView} 
         onDeselect={handleDeselect}
         onExport={handleExport}
-        onCloudSync={handleCloudSync}
         onCloudLoad={() => handleCloudLoad(false)}
         isSyncing={isSyncing}
         lastSynced={lastSynced}
+        totalCases={cases.length}
       />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -229,6 +246,7 @@ const App: React.FC = () => {
               caseData={activeCase} 
               advocates={advocates} 
               caseTypes={caseTypes} 
+              courtNames={courtNames}
               onSave={handleSaveCase} 
               onBack={handleDeselect}
               onDelete={handleDeleteCase}

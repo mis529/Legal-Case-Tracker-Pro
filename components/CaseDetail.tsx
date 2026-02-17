@@ -2,12 +2,13 @@
 import React, { useState } from 'react';
 import { Case, FeePayment, Advocate, CaseType } from '../types';
 import CaseForm from './CaseForm';
-import { BackIcon, EditIcon, TrashIcon, MoneyIcon, UserIcon, GavelIcon, CalendarIcon, ArrowUpRightIcon, ArrowDownLeftIcon } from './icons';
+import { BackIcon, EditIcon, TrashIcon, UserIcon, GavelIcon, CalendarIcon, ArrowUpRightIcon, ArrowDownLeftIcon } from './icons';
 
 interface CaseDetailProps {
   caseData: Case | null;
   advocates: Advocate[];
   caseTypes: CaseType[];
+  courtNames: string[];
   onSave: (caseToSave: Case) => void;
   onBack: () => void;
   onDelete: (caseId: string) => void;
@@ -33,7 +34,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 );
 
 
-const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes, onSave, onBack, onDelete }) => {
+const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes, courtNames, onSave, onBack, onDelete }) => {
   const [isEditing, setIsEditing] = useState<boolean>(!caseData);
 
   const handleSave = (updatedCase: Case) => {
@@ -44,7 +45,7 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes,
   const totalFeesPaid = caseData?.feePayments.reduce((sum, p) => sum + p.amount, 0) || 0;
 
   if (isEditing) {
-    return <CaseForm initialData={caseData} advocates={advocates} caseTypes={caseTypes} onSave={handleSave} onCancel={caseData ? () => setIsEditing(false) : onBack} />;
+    return <CaseForm initialData={caseData} advocates={advocates} caseTypes={caseTypes} courtNames={courtNames} onSave={handleSave} onCancel={caseData ? () => setIsEditing(false) : onBack} />;
   }
 
   if (!caseData) return null;

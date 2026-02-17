@@ -29,11 +29,7 @@ const App: React.FC = () => {
   const [advocates, setAdvocates] = useState<Advocate[]>(() => {
     try {
       const saved = localStorage.getItem('advocates');
-      return saved ? JSON.parse(saved) : [
-        { id: 'adv1', name: 'Jessica Pearson', email: 'j.pearson@specterlitt.com', phone: '555-0101' },
-        { id: 'adv2', name: 'Louis Litt', email: 'l.litt@specterlitt.com', phone: '555-0102' },
-        { id: 'adv3', name: 'Rachel Zane', email: 'r.zane@specterlitt.com', phone: '555-0103' },
-      ];
+      return saved ? JSON.parse(saved) : [];
     } catch {
         return [];
     }
@@ -51,7 +47,6 @@ const App: React.FC = () => {
   const [lastSynced, setLastSynced] = useState<string | null>(() => localStorage.getItem('lastSynced'));
   const [isSyncing, setIsSyncing] = useState(false);
   
-  // Persistence effects for local storage backup
   useEffect(() => { localStorage.setItem('cases', JSON.stringify(cases)); }, [cases]);
   useEffect(() => { localStorage.setItem('advocates', JSON.stringify(advocates)); }, [advocates]);
   useEffect(() => { localStorage.setItem('caseTypes', JSON.stringify(caseTypes)); }, [caseTypes]);
@@ -62,32 +57,32 @@ const App: React.FC = () => {
     try {
       const data = await loadFromGoogleSheets();
       if (data) {
-        // Only update if there is actual content or if local is empty
-        const hasCloudContent = (data.cases?.length > 0 || data.advocates?.length > 0);
-        if (hasCloudContent || cases.length === 0) {
-          if (Array.isArray(data.cases)) setCases(data.cases);
-          if (Array.isArray(data.advocates)) setAdvocates(data.advocates);
-          if (Array.isArray(data.caseTypes)) setCaseTypes(data.caseTypes);
+        // If the cloud has content, we replace. If cloud is empty but we have local, we keep local.
+        const hasCloudContent = (data.cases && data.cases.length > 0);
+        
+        if (hasCloudContent) {
+          setCases(data.cases);
+          setAdvocates(data.advocates || []);
+          setCaseTypes(data.caseTypes || []);
           setLastSynced(`Loaded at ${new Date().toLocaleTimeString()}`);
-          if (!isInitial) alert("Data successfully loaded from Google Sheets.");
+          if (!isInitial) alert(`Successfully loaded ${data.cases.length} cases from the cloud.`);
         } else if (!isInitial) {
-          alert("Cloud storage is empty. No data to load.");
+          alert("Connected to cloud, but no case data was found in your spreadsheet.");
         }
       } else if (!isInitial) {
-        alert("Failed to load data. Ensure your Script is deployed correctly.");
+        alert("Failed to connect to Google Sheets. Please ensure your script is deployed as a Web App for 'Anyone'.");
       }
     } catch (error) {
-      console.error("Cloud load failed:", error);
+      console.error("Cloud load error:", error);
+      if (!isInitial) alert("A network error occurred while loading data.");
     } finally {
       setIsSyncing(false);
     }
-  }, [cases.length]);
+  }, []);
 
-  // Load data from Google Sheets when app starts
   useEffect(() => {
     handleCloudLoad(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, [handleCloudLoad]); 
 
 
   const [currentView, setCurrentView] = useState<'cases' | 'advocates'>('cases');
@@ -182,10 +177,10 @@ const App: React.FC = () => {
     try {
       await syncToGoogleSheets({ cases, advocates, caseTypes });
       setLastSynced(`Synced at ${new Date().toLocaleTimeString()}`);
-      alert("Sync request dispatched to Google Sheets.");
+      alert("Sync request sent. Please allow a few moments for the Google Sheet to update.");
     } catch (error) {
       console.error("Sync failed:", error);
-      alert("Cloud sync failed. Check console for details.");
+      alert("Cloud sync failed. Check your network or Google Script deployment.");
     } finally {
       setIsSyncing(false);
     }

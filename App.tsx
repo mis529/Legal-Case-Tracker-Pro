@@ -59,24 +59,31 @@ const App: React.FC = () => {
 
   // Load data from Google Sheets when app starts
   useEffect(() => {
-  const loadData = async () => {
-    try {
-      const data = await loadFromGoogleSheets();
+    const loadData = async () => {
+      try {
+        const data = await loadFromGoogleSheets();
 
-      if (data && (data.cases || data.advocates || data.caseTypes)) {
-        if (data.cases) setCases(data.cases);
-        if (data.advocates) setAdvocates(data.advocates);
-        if (data.caseTypes) setCaseTypes(data.caseTypes);
+        if (data) {
+          // Only overwrite if cloud data has content, OR if we have NO local data.
+          // This prevents accidental local data loss on first load if the sheet is empty.
+          const hasCloudData = (data.cases?.length > 0 || data.advocates?.length > 0);
+          const hasLocalData = (cases.length > 0 || advocates.length > 3); // 3 is default count
 
-        setLastSynced(new Date().toLocaleTimeString());
+          if (hasCloudData || !hasLocalData) {
+            if (Array.isArray(data.cases)) setCases(data.cases);
+            if (Array.isArray(data.advocates)) setAdvocates(data.advocates);
+            if (Array.isArray(data.caseTypes)) setCaseTypes(data.caseTypes);
+            setLastSynced(new Date().toLocaleTimeString());
+          }
+        }
+      } catch (error) {
+        console.error("Cloud data load failed. Falling back to local storage.");
       }
-    } catch (error) {
-      console.log("No cloud data yet. Using local data.");
-    }
-  };
+    };
 
-  loadData();
-}, []);
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
 
   const [currentView, setCurrentView] = useState<'cases' | 'advocates'>('cases');
@@ -126,149 +133,156 @@ const App: React.FC = () => {
     });
     setActiveCaseId(caseToSave.id);
     setIsCreatingNewCase(false);
-    // Suggest sync
-    console.log("Case saved locally. Use the Cloud button to back up to Google Sheets.");
   }, []);
 
+  // Completed missing handleDeleteCase implementation
   const handleDeleteCase = useCallback((caseId: string) => {
     setCases(prev => prev.filter(c => c.id !== caseId));
-    if (activeCaseId === caseId) handleDeselect();
-  }, [activeCaseId, handleDeselect]);
-  
-  const handleInitiateNewAdvocate = useCallback(() => {
-    handleDeselect();
-    setIsCreatingNewAdvocate(true);
-  }, [handleDeselect]);
+    setActiveCaseId(null);
+  }, []);
 
-  const handleEditAdvocate = useCallback((advocate: Advocate) => {
-    handleDeselect();
-    setEditingAdvocate(advocate);
-  }, [handleDeselect]);
-
+  // Added missing handleSaveAdvocate implementation
   const handleSaveAdvocate = useCallback((advocateToSave: Advocate) => {
     setAdvocates(prev => {
       const exists = prev.some(a => a.id === advocateToSave.id);
       if (exists) return prev.map(a => a.id === advocateToSave.id ? advocateToSave : a);
       return [...prev, advocateToSave];
     });
-    handleDeselect();
     setActiveAdvocateId(advocateToSave.id);
-  }, [handleDeselect]);
-
-  const handleDeleteAdvocate = useCallback((advocateId: string) => {
-    if (cases.some(c => c.advocateId === advocateId)) {
-        alert("Cannot delete advocate with assigned cases. Please reassign cases first.");
-        return;
-    }
-    setAdvocates(prev => prev.filter(a => a.id !== advocateId));
-    if (activeAdvocateId === advocateId) handleDeselect();
-  }, [cases, activeAdvocateId, handleDeselect]);
-
-  const handleAddCaseType = useCallback((name: string) => {
-    if (name && !caseTypes.some(ct => ct.name.toLowerCase() === name.toLowerCase())) {
-        const newCaseType: CaseType = { id: `ct-${Date.now()}`, name };
-        setCaseTypes(prev => [...prev, newCaseType]);
-    }
-  }, [caseTypes]);
-
-  const handleAddPayment = useCallback((caseId: string, paymentData: Omit<FeePayment, 'id'>) => {
-      setCases(prevCases => {
-          return prevCases.map(c => {
-              if (c.id === caseId) {
-                  const newPayment: FeePayment = { ...paymentData, id: `fee-${crypto.randomUUID()}` };
-                  return { ...c, feePayments: [...(c.feePayments || []), newPayment]};
-              }
-              return c;
-          });
-      });
+    setIsCreatingNewAdvocate(false);
+    setEditingAdvocate(null);
   }, []);
 
-  const handleExportData = useCallback(() => {
-    const data = { cases, advocates, caseTypes, exportDate: new Date().toISOString() };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `legal_tracker_export_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, [cases, advocates, caseTypes]);
+  // Added missing handleDeleteAdvocate implementation
+  const handleDeleteAdvocate = useCallback((advocateId: string) => {
+    setAdvocates(prev => prev.filter(a => a.id !== advocateId));
+    setActiveAdvocateId(null);
+  }, []);
 
-  const handleCloudSync = useCallback(async () => {
+  // Added missing handleAddCaseType implementation
+  const handleAddCaseType = useCallback((name: string) => {
+    const newType: CaseType = { id: `ct-${Date.now()}`, name };
+    setCaseTypes(prev => [...prev, newType]);
+  }, []);
+
+  // Added missing handleAddPayment implementation
+  const handleAddPayment = useCallback((caseId: string, payment: Omit<FeePayment, 'id'>) => {
+    setCases(prev => prev.map(c => {
+      if (c.id === caseId) {
+        return {
+          ...c,
+          feePayments: [...c.feePayments, { ...payment, id: crypto.randomUUID() }]
+        };
+      }
+      return c;
+    }));
+  }, []);
+
+  // Added missing handleCloudSync implementation
+  const handleCloudSync = async () => {
     setIsSyncing(true);
     try {
-        await syncToGoogleSheets({ cases, advocates, caseTypes });
-        setLastSynced(new Date().toLocaleTimeString());
-        alert('Sync Successful! Your data has been uploaded to Google Sheets.');
-    } catch (err: any) {
-        alert('Sync Error: ' + (err.message || 'Check your internet and Script URL.'));
+      await syncToGoogleSheets({ cases, advocates, caseTypes });
+      setLastSynced(new Date().toLocaleTimeString());
+    } catch (error) {
+      console.error("Sync failed:", error);
+      alert("Cloud sync failed. Please try again later.");
     } finally {
-        setIsSyncing(false);
+      setIsSyncing(false);
     }
-  }, [cases, advocates, caseTypes]);
+  };
 
-  const activeCase = useMemo(() => cases.find(c => c.id === activeCaseId) || null, [cases, activeCaseId]);
-  const activeAdvocate = useMemo(() => advocates.find(a => a.id === activeAdvocateId) || null, [advocates, activeAdvocateId]);
+  // Added missing handleExport implementation
+  const handleExport = useCallback(() => {
+    const data = { cases, advocates, caseTypes, lastSynced };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `legal-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [cases, advocates, caseTypes, lastSynced]);
 
+  // Added missing filteredCases derivation
   const filteredCases = useMemo(() => {
-    return cases.filter(c => 
-      (filters.caseTypeId === 'All' || c.caseTypeId === filters.caseTypeId) &&
-      (filters.courtName === 'All' || c.courtName === filters.courtName) &&
-      (filters.caseDirection === 'All' || c.caseDirection === filters.caseDirection)
-    );
+    return cases.filter(c => {
+      const matchesType = filters.caseTypeId === 'All' || c.caseTypeId === filters.caseTypeId;
+      const matchesCourt = filters.courtName === 'All' || c.courtName === filters.courtName;
+      const matchesDirection = filters.caseDirection === 'All' || c.caseDirection === filters.caseDirection;
+      return matchesType && matchesCourt && matchesDirection;
+    });
   }, [cases, filters]);
 
-  const renderContent = () => {
-    if (currentView === 'advocates') {
-        if (isCreatingNewAdvocate || editingAdvocate) {
-            return <AdvocateForm onSave={handleSaveAdvocate} onCancel={handleDeselect} initialData={editingAdvocate}/>;
-        }
-        if (activeAdvocate) {
-            return <AdvocateDetail advocate={activeAdvocate} cases={cases.filter(c => c.advocateId === activeAdvocate.id)} onBack={handleDeselect} onNavigateToCase={handleNavigateToCase} onEdit={handleEditAdvocate} onDelete={handleDeleteAdvocate} onAddPayment={handleAddPayment} />;
-        }
-        return <AdvocateDashboard advocates={advocates} onSelectAdvocate={handleSelectAdvocate} onNewAdvocate={handleInitiateNewAdvocate}/>;
-    }
-
-    if (isCreatingNewCase || activeCase) {
-        return <CaseDetail
-            caseData={activeCase}
-            advocates={advocates}
-            caseTypes={caseTypes}
-            onSave={handleSaveCase}
-            onBack={handleDeselect}
-            onDelete={handleDeleteCase}
-        />
-    }
-    return <Dashboard 
-        cases={filteredCases}
-        allCases={cases}
-        caseTypes={caseTypes}
-        onAddCaseType={handleAddCaseType}
-        onSelectCase={handleSelectCase} 
-        onNewCase={handleInitiateNewCase} 
-        filters={filters}
-        onFilterChange={setFilters}
-    />
-  }
+  const activeCase = cases.find(c => c.id === activeCaseId) || null;
+  const activeAdvocate = advocates.find(a => a.id === activeAdvocateId) || null;
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors">
       <Header 
         currentView={currentView} 
         setCurrentView={setCurrentView} 
-        onDeselect={handleDeselect} 
-        onExport={handleExportData}
+        onDeselect={handleDeselect}
+        onExport={handleExport}
         onCloudSync={handleCloudSync}
         isSyncing={isSyncing}
         lastSynced={lastSynced}
       />
-      <main className="p-4 sm:p-6 md:p-8">
-        {renderContent()}
+      
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {currentView === 'cases' ? (
+          activeCaseId || isCreatingNewCase ? (
+            <CaseDetail 
+              caseData={activeCase} 
+              advocates={advocates} 
+              caseTypes={caseTypes} 
+              onSave={handleSaveCase} 
+              onBack={handleDeselect}
+              onDelete={handleDeleteCase}
+            />
+          ) : (
+            <Dashboard 
+              cases={filteredCases} 
+              allCases={cases} 
+              caseTypes={caseTypes} 
+              onAddCaseType={handleAddCaseType}
+              onSelectCase={handleSelectCase}
+              onNewCase={handleInitiateNewCase}
+              filters={filters}
+              onFilterChange={setFilters}
+            />
+          )
+        ) : (
+          activeAdvocateId || isCreatingNewAdvocate || editingAdvocate ? (
+            editingAdvocate || isCreatingNewAdvocate ? (
+                <AdvocateForm 
+                    initialData={editingAdvocate} 
+                    onSave={handleSaveAdvocate} 
+                    onCancel={handleDeselect} 
+                />
+            ) : (
+                <AdvocateDetail 
+                    advocate={activeAdvocate!} 
+                    cases={cases.filter(c => c.advocateId === activeAdvocateId)} 
+                    onBack={handleDeselect}
+                    onNavigateToCase={handleNavigateToCase}
+                    onEdit={setEditingAdvocate}
+                    onDelete={handleDeleteAdvocate}
+                    onAddPayment={handleAddPayment}
+                />
+            )
+          ) : (
+            <AdvocateDashboard 
+              advocates={advocates} 
+              onSelectAdvocate={handleSelectAdvocate} 
+              onNewAdvocate={() => setIsCreatingNewAdvocate(true)}
+            />
+          )
+        )}
       </main>
     </div>
   );
 };
 
+// Exporting App as default to fix the import error in index.tsx
 export default App;

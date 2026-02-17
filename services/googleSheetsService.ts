@@ -8,7 +8,8 @@ const GOOGLE_SCRIPT_URL =
  * SYNC DATA TO GOOGLE SHEETS
  * Matches your GAS doPost(e) logic:
  * - Sends JSON.stringify({ cases, advocates, caseTypes })
- * - Uses 'text/plain' to bypass CORS preflight and reach e.postData.contents
+ * - Uses 'no-cors' to bypass preflight OPTIONS request which GAS doesn't support.
+ * - Body is sent as raw text, which GAS captures in e.postData.contents.
  */
 export async function syncToGoogleSheets(data: {
   cases: Case[],
@@ -16,33 +17,34 @@ export async function syncToGoogleSheets(data: {
   caseTypes: CaseType[]
 }) {
   try {
-    console.log("Cloud Sync: Preparing structured payload for multi-sheet save...");
+    console.log("Cloud Sync: Initiating data push...");
     
-    // Ensure the payload structure matches what the GAS script expects
+    // Ensure we send a valid JSON string
     const payload = JSON.stringify({
       cases: data.cases || [],
       advocates: data.advocates || [],
       caseTypes: data.caseTypes || []
     });
 
-    // We use 'no-cors' for POST to Google Apps Script. 
-    // This allows the request to be sent and executed on the server, 
-    // even if the browser doesn't let us read the 'Success' response body.
+    // We MUST use mode: 'no-cors' for POST to Google Apps Script.
+    // This makes it an 'opaque' request. We won't be able to read the response status
+    // or body in the browser, but the script WILL execute on the server.
     await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
       mode: "no-cors", 
       cache: "no-cache",
+      redirect: "follow",
       headers: {
         "Content-Type": "text/plain", 
       },
       body: payload,
     });
 
-    console.log("Cloud Sync: Payload delivered to Google Script. Check your 'Cases', 'Advocates', and 'CaseTypes' tabs.");
+    console.log("Cloud Sync: Request sent. Please check your Google Sheet tabs ('Cases', 'Advocates', 'CaseTypes').");
     return { status: "success" };
   } catch (error) {
-    console.error("Cloud Sync Error:", error);
-    throw new Error("Connection failed. Check your internet and ensure the Script is deployed as 'Anyone'.");
+    console.error("Cloud Sync: Critical failure:", error);
+    throw new Error("Network error while trying to reach Google Sheets. Ensure your URL is correct and you have internet access.");
   }
 }
 
@@ -53,27 +55,39 @@ export async function syncToGoogleSheets(data: {
  */
 export async function loadFromGoogleSheets() {
   try {
-    console.log("Cloud Load: Fetching structured data from sheets...");
+    console.log("Cloud Load: Fetching data from Google Sheets...");
     
-    // For GET, we need 'cors' to read the returned JSON
+    // GET requests to GAS are redirect-heavy. fetch handles this.
+    // We use mode: 'cors' (default) because GAS ContentService handles the CORS headers on redirect.
     const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: 'GET',
-        cache: 'no-cache'
+        cache: 'no-cache',
+        redirect: 'follow'
     });
 
-    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+    if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}: Failed to reach Google Script.`);
+    }
     
-    const result = await response.json();
+    const text = await response.text();
     
-    // Validate that we received the expected structure
-    if (result && (result.cases || result.advocates || result.caseTypes)) {
-      console.log("Cloud Load: Successfully synchronized with Google Sheets.");
-      return result;
+    // If the response is empty or HTML (likely a Google error page), parsing will fail.
+    try {
+        const result = JSON.parse(text);
+        
+        // Basic validation of expected keys
+        if (result && (Array.isArray(result.cases) || Array.isArray(result.advocates) || Array.isArray(result.caseTypes))) {
+          console.log("Cloud Load: Successfully synchronized with cloud storage.");
+          return result;
+        }
+    } catch (parseError) {
+        console.warn("Cloud Load: Received non-JSON response. This often happens if the Script is not deployed as 'Anyone'.", text.substring(0, 100));
+        return null;
     }
     
     return null;
   } catch (error) {
-    console.warn("Cloud Load: No data found or connection issue. Using local storage.", error);
+    console.warn("Cloud Load: Data could not be retrieved from the cloud. Falling back to local state.", error);
     return null;
   }
 }

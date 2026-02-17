@@ -59,22 +59,25 @@ const App: React.FC = () => {
 
   // Load data from Google Sheets when app starts
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await loadFromGoogleSheets();
-        if (data && (data.cases || data.advocates || data.caseTypes)) {
-            if (data.cases) setCases(data.cases);
-            if (data.advocates) setAdvocates(data.advocates);
-            if (data.caseTypes) setCaseTypes(data.caseTypes);
-            setLastSynced(new Date().toLocaleTimeString());
-        }
-      } catch (error) {
-        console.log("No cloud data yet. Using local data.");
+  const loadData = async () => {
+    try {
+      const data = await loadFromGoogleSheets();
+
+      if (data && (data.cases || data.advocates || data.caseTypes)) {
+        if (data.cases) setCases(data.cases);
+        if (data.advocates) setAdvocates(data.advocates);
+        if (data.caseTypes) setCaseTypes(data.caseTypes);
+
+        setLastSynced(new Date().toLocaleTimeString());
       }
-    };
-    const timer = setTimeout(loadData, 800);
-    return () => clearTimeout(timer);
-  }, []);
+    } catch (error) {
+      console.log("No cloud data yet. Using local data.");
+    }
+  };
+
+  loadData();
+}, []);
+
 
   const [currentView, setCurrentView] = useState<'cases' | 'advocates'>('cases');
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
@@ -173,7 +176,7 @@ const App: React.FC = () => {
           return prevCases.map(c => {
               if (c.id === caseId) {
                   const newPayment: FeePayment = { ...paymentData, id: `fee-${crypto.randomUUID()}` };
-                  return { ...c, feePayments: [...c.feePayments, newPayment] };
+                  return { ...c, feePayments: [...(c.feePayments || []), newPayment]};
               }
               return c;
           });

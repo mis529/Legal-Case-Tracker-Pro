@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { Case, CaseType } from '../types';
 import CaseList from './CaseList';
-import { PlusIcon, MoneyIcon } from './icons';
+import { PlusIcon, MoneyIcon, TrashIcon } from './icons';
 
 interface DashboardProps {
   cases: Case[];
@@ -16,9 +16,15 @@ interface DashboardProps {
 }
 
 const FilterSelect: React.FC<{ label: string; value: string; onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void; children: React.ReactNode }> = ({ label, value, onChange, children }) => (
-    <div>
-        <label className="sr-only">{label}</label>
-        <select value={value} onChange={onChange} className="w-full sm:w-auto text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 py-2 px-3">
+    <div className="flex flex-col gap-1 w-full sm:w-auto">
+        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+            {label}
+        </label>
+        <select 
+            value={value} 
+            onChange={onChange} 
+            className="w-full sm:min-w-[180px] text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 py-2 px-3 transition-all"
+        >
             {children}
         </select>
     </div>
@@ -27,8 +33,6 @@ const FilterSelect: React.FC<{ label: string; value: string; onChange: (e: React
 const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, onAddCaseType, onSelectCase, onNewCase, filters, onFilterChange }) => {
   const [newCaseTypeName, setNewCaseTypeName] = useState('');
 
-  const upcomingCases = cases.filter(c => new Date(c.nextHearingDate) >= new Date()).length;
-  
   const totalFees = useMemo(() => {
     return allCases.reduce((sum, c) => sum + c.feePayments.reduce((pSum, p) => pSum + p.amount, 0), 0);
   }, [allCases]);
@@ -37,15 +41,38 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, onAdd
     onFilterChange(prev => ({...prev, [filterName]: e.target.value }));
   }
 
-  const handleAddCaseType = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newCaseTypeName.trim()) {
-        onAddCaseType(newCaseTypeName.trim());
-        setNewCaseTypeName('');
-    }
-  }
+  const resetFilters = () => {
+      onFilterChange({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All' });
+  };
 
-  const courtNames = useMemo(() => [...new Set(allCases.map(c => c.courtName))], [allCases]);
+  // Calculate counts for each court name
+  const courtNamesWithCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allCases.forEach(c => {
+        counts[c.courtName] = (counts[c.courtName] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [allCases]);
+
+  // Calculate counts for each case type
+  const caseTypeCounts = useMemo(() => {
+      const counts: Record<string, number> = {};
+      allCases.forEach(c => {
+          counts[c.caseTypeId] = (counts[c.caseTypeId] || 0) + 1;
+      });
+      return counts;
+  }, [allCases]);
+
+  // Calculate direction counts
+  const directionCounts = useMemo(() => {
+      const counts: Record<string, number> = { 'Plaintiff': 0, 'Defendant': 0 };
+      allCases.forEach(c => {
+          counts[c.caseDirection] = (counts[c.caseDirection] || 0) + 1;
+      });
+      return counts;
+  }, [allCases]);
+
+  const hasActiveFilters = filters.caseTypeId !== 'All' || filters.courtName !== 'All' || filters.caseDirection !== 'All';
 
   return (
     <div className="space-y-6">
@@ -64,29 +91,48 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, onAdd
         </div>
         <button
           onClick={onNewCase}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all active:scale-95"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition-all active:scale-95"
         >
           <PlusIcon className="h-5 w-5" />
           New Case
         </button>
       </div>
 
-      <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-              <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0">Filters</h3>
+      <div className="p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row items-end gap-4">
               <FilterSelect label="Case Type" value={filters.caseTypeId} onChange={handleFilter('caseTypeId')}>
-                <option value="All">All Case Types</option>
-                {caseTypes.map(ct => <option key={ct.id} value={ct.id}>{ct.name}</option>)}
+                <option value="All">All Types ({allCases.length})</option>
+                {caseTypes.map(ct => (
+                    <option key={ct.id} value={ct.id}>
+                        {ct.name} ({caseTypeCounts[ct.id] || 0})
+                    </option>
+                ))}
               </FilterSelect>
+              
               <FilterSelect label="Court Name" value={filters.courtName} onChange={handleFilter('courtName')}>
-                <option value="All">All Court Names</option>
-                {courtNames.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                <option value="All">All Courts ({allCases.length})</option>
+                {courtNamesWithCounts.map(([name, count]) => (
+                    <option key={name} value={name}>
+                        {name} ({count})
+                    </option>
+                ))}
               </FilterSelect>
+              
               <FilterSelect label="Case Direction" value={filters.caseDirection} onChange={handleFilter('caseDirection')}>
-                 <option value="All">All Directions</option>
-                 <option value="Plaintiff">Plaintiff</option>
-                 <option value="Defendant">Defendant</option>
+                 <option value="All">All Directions ({allCases.length})</option>
+                 <option value="Plaintiff">Plaintiff ({directionCounts['Plaintiff']})</option>
+                 <option value="Defendant">Defendant ({directionCounts['Defendant']})</option>
               </FilterSelect>
+
+              {hasActiveFilters && (
+                  <button 
+                    onClick={resetFilters}
+                    className="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 hover:text-red-500 py-3 px-2 transition-colors"
+                  >
+                      <TrashIcon className="h-3.5 w-3.5" />
+                      CLEAR FILTERS
+                  </button>
+              )}
           </div>
       </div>
 

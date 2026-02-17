@@ -68,18 +68,18 @@ const App: React.FC = () => {
     setIsSyncing(true);
     try {
       const data = await loadFromGoogleSheets();
-      // If data is null, the fetch failed
+      
+      // If data is null, the fetch failed entirely (e.g. network error)
+      // but if data is an object, we proceed to update the app.
       if (data) {
-        // IMPORTANT: We overwrite even if data.cases is empty, 
-        // which allows the app to reflect a cleared spreadsheet.
         isInitialLoadRef.current = true; 
         
-        setCases(data.cases || []);
-        setAdvocates(data.advocates || []);
+        // Force array spread to ensure we have a fresh reference and handle empty arrays correctly
+        setCases([...(data.cases || [])]);
+        setAdvocates([...(data.advocates || [])]);
         
         if (data.caseTypes && data.caseTypes.length > 0) {
             setCaseTypes(prev => {
-                // Merge cloud types with existing types to avoid losing IDs
                 const existingNames = new Set(prev.map(t => t.name.toLowerCase()));
                 const newTypes = data.caseTypes.filter(t => !existingNames.has(t.name.toLowerCase()));
                 return [...prev, ...newTypes];
@@ -90,8 +90,10 @@ const App: React.FC = () => {
             setCourtNames(prev => Array.from(new Set([...prev, ...data.courtNames])));
         }
         
-        setLastSynced(`Refreshed ${new Date().toLocaleTimeString()}`);
-        setTimeout(() => { isInitialLoadRef.current = false; }, 1500);
+        setLastSynced(`Updated ${new Date().toLocaleTimeString()}`);
+        
+        // Short delay before allowing auto-sync to resume, preventing "save loops"
+        setTimeout(() => { isInitialLoadRef.current = false; }, 2000);
       }
     } catch (error) {
       console.error("Cloud load error:", error);
@@ -119,7 +121,7 @@ const App: React.FC = () => {
       } finally {
         setIsSyncing(false);
       }
-    }, 2500); 
+    }, 3000); // 3s debounce for smoother editing
 
     return () => {
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
@@ -200,7 +202,6 @@ const App: React.FC = () => {
     const normalizedName = name.trim();
     if (!normalizedName) return '';
     
-    // Check if it already exists
     const existing = caseTypes.find(t => t.name.toLowerCase() === normalizedName.toLowerCase());
     if (existing) return existing.id;
 

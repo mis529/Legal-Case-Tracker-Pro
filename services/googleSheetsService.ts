@@ -1,15 +1,11 @@
 
-import { Case, Advocate, CaseType } from '../types';
+import { Case, Advocate, CaseType, FeePayment, CaseDirection } from '../types';
 
 const GOOGLE_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbzExvIQYIRie4-NB3UVqjpZyuXlDEpONI8OBjTSr7TdsxZXRBvlE-4tR23gBUaWOW1O/exec";
 
 /**
  * SYNC DATA TO GOOGLE SHEETS
- * Matches your GAS doPost(e) logic:
- * - Sends JSON.stringify({ cases, advocates, caseTypes })
- * - Uses 'no-cors' to bypass preflight OPTIONS request which GAS doesn't support.
- * - Body is sent as raw text, which GAS captures in e.postData.contents.
  */
 export async function syncToGoogleSheets(data: {
   cases: Case[],
@@ -17,77 +13,155 @@ export async function syncToGoogleSheets(data: {
   caseTypes: CaseType[]
 }) {
   try {
-    console.log("Cloud Sync: Initiating data push...");
-    
-    // Ensure we send a valid JSON string
-    const payload = JSON.stringify({
-      cases: data.cases || [],
-      advocates: data.advocates || [],
-      caseTypes: data.caseTypes || []
+    // 1. Map Advocates: Advocate Name, Mobile, Fee Type, Total Fees Paid, Pending
+    const preparedAdvocates = data.advocates.map(adv => {
+      const advocateCases = data.cases.filter(c => c.advocateId === adv.id);
+      const totalFeesPaid = advocateCases.reduce((sum, c) => 
+        sum + c.feePayments.reduce((pSum, p) => pSum + p.amount, 0), 0
+      );
+
+      return {
+        "Advocate Name": adv.name,
+        "Mobile": adv.phone || "",
+        "Fee Type": "Standard",
+        "Total Fees Paid": totalFeesPaid,
+        "Pending": 0 
+      };
     });
 
-    // We MUST use mode: 'no-cors' for POST to Google Apps Script.
-    // This makes it an 'opaque' request. We won't be able to read the response status
-    // or body in the browser, but the script WILL execute on the server.
+    // 2. Map Cases: Case No, Court, Case Type, Department, Advocate, Next Hearing, Remarks, Created Date
+    const preparedCases = data.cases.map(c => {
+      const typeObj = data.caseTypes.find(t => t.id === c.caseTypeId);
+      const advObj = data.advocates.find(a => a.id === c.advocateId);
+      
+      return {
+        "Case No": c.caseNumber,
+        "Court": c.courtName,
+        "Case Type": typeObj?.name || "Other",
+        "Department": typeObj?.name || "Legal",
+        "Advocate": advObj?.name || "Unassigned",
+        "Next Hearing": new Date(c.nextHearingDate).toISOString().split('T')[0],
+        "Remarks": c.advocateComments || "",
+        "Created Date": new Date(c.createdAt).toISOString().split('T')[0],
+        // Internal metadata for re-loading
+        "_id": c.id,
+        "_advocateId": c.advocateId,
+        "_caseDirection": c.caseDirection,
+        "_courseOfAction": c.courseOfAction,
+        "_personAppearing": c.personAppearing
+      };
+    });
+
+    // 3. Map Payments (into your 'CaseTypes' sheet): Case No, Advocate, Amount, Paid Date, Mode
+    const allPayments: any[] = [];
+    data.cases.forEach(c => {
+      const advObj = data.advocates.find(a => a.id === c.advocateId);
+      c.feePayments.forEach(p => {
+        allPayments.push({
+          "Case No": c.caseNumber,
+          "Advocate": advObj?.name || "Unknown",
+          "Amount": p.amount,
+          "Paid Date": new Date(p.date).toISOString().split('T')[0],
+          "Mode": p.notes?.toLowerCase().includes("cash") ? "Cash" : "Online"
+        });
+      });
+    });
+
+    const payload = JSON.stringify({
+      cases: preparedCases,
+      advocates: preparedAdvocates,
+      payments: allPayments,
+      timestamp: new Date().toISOString()
+    });
+
     await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
       mode: "no-cors", 
       cache: "no-cache",
-      redirect: "follow",
-      headers: {
-        "Content-Type": "text/plain", 
-      },
+      headers: { "Content-Type": "text/plain" },
       body: payload,
     });
 
-    console.log("Cloud Sync: Request sent. Please check your Google Sheet tabs ('Cases', 'Advocates', 'CaseTypes').");
     return { status: "success" };
   } catch (error) {
-    console.error("Cloud Sync: Critical failure:", error);
-    throw new Error("Network error while trying to reach Google Sheets. Ensure your URL is correct and you have internet access.");
+    console.error("Cloud Sync Failure:", error);
+    throw error;
   }
 }
 
 /**
  * LOAD DATA FROM GOOGLE SHEETS
- * Matches your GAS doGet() logic:
- * - Fetches structured JSON { cases, advocates, caseTypes }
  */
 export async function loadFromGoogleSheets() {
   try {
-    console.log("Cloud Load: Fetching data from Google Sheets...");
-    
-    // GET requests to GAS are redirect-heavy. fetch handles this.
-    // We use mode: 'cors' (default) because GAS ContentService handles the CORS headers on redirect.
     const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: 'GET',
         cache: 'no-cache',
         redirect: 'follow'
     });
 
-    if (!response.ok) {
-        throw new Error(`HTTP Error ${response.status}: Failed to reach Google Script.`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
     const text = await response.text();
+    const result = JSON.parse(text);
+
+    if (!result || !result.cases) return null;
+
+    // 1. Process Advocates
+    const advocates: Advocate[] = (result.advocates || []).map((a: any, idx: number) => ({
+        id: a._id || `adv-cloud-${idx}`,
+        name: a["Advocate Name"] || "Unknown",
+        phone: a["Mobile"] || "",
+        email: a.email || ""
+    }));
+
+    // 2. Process Payments (from the 'payments' or 'CaseTypes' data)
+    const paymentsRaw = result.payments || [];
     
-    // If the response is empty or HTML (likely a Google error page), parsing will fail.
-    try {
-        const result = JSON.parse(text);
+    // 3. Process Cases & Link Payments
+    const cases: Case[] = (result.cases || []).map((c: any, idx: number) => {
+        const caseNo = c["Case No"];
         
-        // Basic validation of expected keys
-        if (result && (Array.isArray(result.cases) || Array.isArray(result.advocates) || Array.isArray(result.caseTypes))) {
-          console.log("Cloud Load: Successfully synchronized with cloud storage.");
-          return result;
-        }
-    } catch (parseError) {
-        console.warn("Cloud Load: Received non-JSON response. This often happens if the Script is not deployed as 'Anyone'.", text.substring(0, 100));
-        return null;
-    }
+        // Find matching payments for this case
+        const casePayments: FeePayment[] = paymentsRaw
+            .filter((p: any) => p["Case No"] === caseNo)
+            .map((p: any, pIdx: number) => ({
+                id: `pay-cloud-${idx}-${pIdx}`,
+                amount: Number(p["Amount"]) || 0,
+                date: p["Paid Date"] ? new Date(p["Paid Date"]).toISOString() : new Date().toISOString(),
+                notes: p["Mode"] || ""
+            }));
+
+        return {
+            id: c._id || `case-cloud-${idx}`,
+            caseNumber: caseNo || "N/A",
+            caseTypeId: `ct-${c["Case Type"]}`, // Temporary grouping by name
+            courtName: c["Court"] || "",
+            nextHearingDate: c["Next Hearing"] ? new Date(c["Next Hearing"]).toISOString() : new Date().toISOString(),
+            courseOfAction: c._courseOfAction || "",
+            advocateId: c._advocateId || (advocates.find(a => a.name === c["Advocate"])?.id || ""),
+            caseDirection: (c._caseDirection as CaseDirection) || 'Plaintiff',
+            personAppearing: c._personAppearing || "",
+            advocateComments: c["Remarks"] || "",
+            feePayments: casePayments,
+            createdAt: c["Created Date"] ? new Date(c["Created Date"]).toISOString() : new Date().toISOString()
+        };
+    });
+
+    // 4. Derive unique Case Types from the data
+    const uniqueTypes = Array.from(new Set(cases.map(c => {
+        const matchingRaw = result.cases.find((rc: any) => rc["Case No"] === c.caseNumber);
+        return matchingRaw ? matchingRaw["Case Type"] : "Other";
+    })));
     
-    return null;
+    const caseTypes: CaseType[] = uniqueTypes.map(name => ({
+        id: `ct-${name}`,
+        name: name
+    }));
+
+    return { cases, advocates, caseTypes };
   } catch (error) {
-    console.warn("Cloud Load: Data could not be retrieved from the cloud. Falling back to local state.", error);
+    console.warn("Cloud Load: Failed.", error);
     return null;
   }
 }

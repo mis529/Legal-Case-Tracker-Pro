@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
@@ -5,6 +6,12 @@ type IconProps = React.SVGProps<SVGSVGElement>;
 export const GavelIcon: React.FC<IconProps> = (props) => (
   <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="m14 13-7.5 7.5" /><path d="m18.5 8.5-7.5 7.5" /><path d="m2 16 6 6" /><path d="m8 8 6-6" /><path d="m16 2 6 6" /><path d="M9 7 4.5 2.5" /><path d="M14.5 12.5 19 17" />
+  </svg>
+);
+
+export const RefreshIcon: React.FC<IconProps> = (props) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" />
   </svg>
 );
 

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { GavelIcon, BriefcaseIcon, DownloadIcon, CloudIcon } from './icons';
+import { GavelIcon, BriefcaseIcon, DownloadIcon, CloudIcon, RefreshIcon } from './icons';
 
 interface HeaderProps {
     currentView: 'cases' | 'advocates';
@@ -8,6 +8,7 @@ interface HeaderProps {
     onDeselect: () => void;
     onExport: () => void;
     onCloudSync: () => void;
+    onCloudLoad: () => void;
     isSyncing: boolean;
     lastSynced: string | null;
 }
@@ -27,7 +28,7 @@ const NavButton: React.FC<{ isActive: boolean; onClick: () => void; icon: React.
 );
 
 
-const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect, onExport, onCloudSync, isSyncing, lastSynced }) => {
+const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect, onExport, onCloudSync, onCloudLoad, isSyncing, lastSynced }) => {
   const handleViewChange = (view: 'cases' | 'advocates') => {
     onDeselect();
     setCurrentView(view);
@@ -63,26 +64,34 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
                 <div className="flex flex-col items-end mr-1 hidden sm:flex">
                     {lastSynced && (
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                            Synced {lastSynced}
+                            {lastSynced}
                         </span>
                     )}
                 </div>
+                <button 
+                    onClick={onCloudLoad}
+                    disabled={isSyncing}
+                    className="p-2 rounded-full text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    title="Load from Cloud"
+                >
+                    <RefreshIcon className={`h-5 w-5 ${isSyncing ? 'animate-spin' : ''}`} />
+                </button>
                 <button 
                     onClick={onCloudSync}
                     disabled={isSyncing}
                     className={`p-2 rounded-full transition-all ${
                         isSyncing 
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 animate-spin-slow' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                     }`}
-                    title="Sync to Cloud (Google Sheets)"
+                    title="Sync to Cloud"
                 >
                     <CloudIcon className="h-5 w-5" />
                 </button>
                 <button 
                     onClick={onExport}
                     className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-                    title="Export backup (.json)"
+                    title="Export backup"
                 >
                     <DownloadIcon className="h-5 w-5" />
                 </button>

@@ -105,7 +105,6 @@ const App: React.FC = () => {
     syncTimeoutRef.current = setTimeout(async () => {
       setIsSyncing(true);
       try {
-        // We pass the full state to the sync service which will now double-check for any missing entries
         await syncToGoogleSheets({ cases, advocates, caseTypes, courtNames });
         setLastSynced(`Saved ${new Date().toLocaleTimeString()}`);
       } catch (error) {
@@ -127,7 +126,7 @@ const App: React.FC = () => {
   const [isCreatingNewAdvocate, setIsCreatingNewAdvocate] = useState<boolean>(false);
   const [editingAdvocate, setEditingAdvocate] = useState<Advocate | null>(null);
 
-  const [filters, setFilters] = useState({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All' });
+  const [filters, setFilters] = useState({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All', advocateId: 'All' });
 
   const handleSelectCase = useCallback((caseId: string) => {
     setActiveCaseId(caseId);
@@ -160,7 +159,6 @@ const App: React.FC = () => {
   }, [handleDeselect]);
 
   const handleSaveCase = useCallback((caseToSave: Case) => {
-    // Immediate capture of new Court Name for the master list
     if (caseToSave.courtName) {
         const newCourt = caseToSave.courtName.trim();
         setCourtNames(prev => {
@@ -246,7 +244,8 @@ const App: React.FC = () => {
       const matchesType = filters.caseTypeId === 'All' || c.caseTypeId === filters.caseTypeId;
       const matchesCourt = filters.courtName === 'All' || c.courtName === filters.courtName;
       const matchesDirection = filters.caseDirection === 'All' || c.caseDirection === filters.caseDirection;
-      return matchesType && matchesCourt && matchesDirection;
+      const matchesAdvocate = filters.advocateId === 'All' || c.advocateId === filters.advocateId;
+      return matchesType && matchesCourt && matchesDirection && matchesAdvocate;
     });
   }, [cases, filters]);
 
@@ -285,6 +284,7 @@ const App: React.FC = () => {
               allCases={cases} 
               caseTypes={caseTypes} 
               courtNames={courtNames}
+              advocates={advocates}
               onAddCaseType={(name) => handleAddCaseType(name)}
               onSelectCase={handleSelectCase}
               onNewCase={handleInitiateNewCase}

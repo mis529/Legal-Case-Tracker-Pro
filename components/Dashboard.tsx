@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Case, CaseType } from '../types';
+import { Case, CaseType, Advocate } from '../types';
 import CaseList from './CaseList';
 import { PlusIcon, MoneyIcon, TrashIcon } from './icons';
 
@@ -9,11 +9,12 @@ interface DashboardProps {
   allCases: Case[];
   caseTypes: CaseType[];
   courtNames: string[];
+  advocates: Advocate[];
   onAddCaseType: (name: string) => void;
   onSelectCase: (caseId: string) => void;
   onNewCase: () => void;
-  filters: { caseTypeId: string; courtName: string; caseDirection: string; };
-  onFilterChange: React.Dispatch<React.SetStateAction<{ caseTypeId: string; courtName: string; caseDirection: string; }>>;
+  filters: { caseTypeId: string; courtName: string; caseDirection: string; advocateId: string; };
+  onFilterChange: React.Dispatch<React.SetStateAction<{ caseTypeId: string; courtName: string; caseDirection: string; advocateId: string; }>>;
 }
 
 const FilterSelect: React.FC<{ label: string; value: string; onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void; children: React.ReactNode }> = ({ label, value, onChange, children }) => (
@@ -31,26 +32,24 @@ const FilterSelect: React.FC<{ label: string; value: string; onChange: (e: React
     </div>
 );
 
-const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, courtNames, onAddCaseType, onSelectCase, onNewCase, filters, onFilterChange }) => {
+const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, courtNames, advocates, onAddCaseType, onSelectCase, onNewCase, filters, onFilterChange }) => {
   const totalFees = useMemo(() => {
     return allCases.reduce((sum, c) => sum + c.feePayments.reduce((pSum, p) => pSum + p.amount, 0), 0);
   }, [allCases]);
 
-  const handleFilter = (filterName: 'caseTypeId' | 'courtName' | 'caseDirection') => (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleFilter = (filterName: 'caseTypeId' | 'courtName' | 'caseDirection' | 'advocateId') => (e: React.ChangeEvent<HTMLSelectElement>) => {
     onFilterChange(prev => ({...prev, [filterName]: e.target.value }));
   }
 
   const resetFilters = () => {
-      onFilterChange({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All' });
+      onFilterChange({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All', advocateId: 'All' });
   };
 
-  // Calculate counts for each court name based on master list
   const sortedCourtList = useMemo(() => {
     const counts: Record<string, number> = {};
     allCases.forEach(c => {
         counts[c.courtName] = (counts[c.courtName] || 0) + 1;
     });
-    // Ensure all courts in courtNames are represented, even if count is 0
     const list = courtNames.map(name => ({
         name,
         count: counts[name] || 0
@@ -58,7 +57,6 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
     return list.sort((a, b) => a.name.localeCompare(b.name));
   }, [allCases, courtNames]);
 
-  // Calculate counts for each case type based on master list
   const sortedCaseTypeList = useMemo(() => {
       const counts: Record<string, number> = {};
       allCases.forEach(c => {
@@ -70,7 +68,19 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
       })).sort((a, b) => a.name.localeCompare(b.name));
   }, [allCases, caseTypes]);
 
-  // Calculate direction counts
+  const sortedAdvocateList = useMemo(() => {
+      const counts: Record<string, number> = {};
+      allCases.forEach(c => {
+          if (c.advocateId) {
+            counts[c.advocateId] = (counts[c.advocateId] || 0) + 1;
+          }
+      });
+      return advocates.map(adv => ({
+          ...adv,
+          count: counts[adv.id] || 0
+      })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allCases, advocates]);
+
   const directionCounts = useMemo(() => {
       const counts: Record<string, number> = { 'Plaintiff': 0, 'Defendant': 0 };
       allCases.forEach(c => {
@@ -79,7 +89,7 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
       return counts;
   }, [allCases]);
 
-  const hasActiveFilters = filters.caseTypeId !== 'All' || filters.courtName !== 'All' || filters.caseDirection !== 'All';
+  const hasActiveFilters = filters.caseTypeId !== 'All' || filters.courtName !== 'All' || filters.caseDirection !== 'All' || filters.advocateId !== 'All';
 
   return (
     <div className="space-y-6">
@@ -106,7 +116,7 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
       </div>
 
       <div className="p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row items-end gap-4">
+          <div className="flex flex-wrap items-end gap-4">
               <FilterSelect label="Case Type" value={filters.caseTypeId} onChange={handleFilter('caseTypeId')}>
                 <option value="All">All Types ({allCases.length})</option>
                 {sortedCaseTypeList.map(ct => (
@@ -125,6 +135,15 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
                 ))}
               </FilterSelect>
               
+              <FilterSelect label="Advocate" value={filters.advocateId} onChange={handleFilter('advocateId')}>
+                <option value="All">All Advocates ({allCases.length})</option>
+                {sortedAdvocateList.map(adv => (
+                    <option key={adv.id} value={adv.id}>
+                        {adv.name} ({adv.count})
+                    </option>
+                ))}
+              </FilterSelect>
+
               <FilterSelect label="Case Direction" value={filters.caseDirection} onChange={handleFilter('caseDirection')}>
                  <option value="All">All Directions ({allCases.length})</option>
                  <option value="Plaintiff">Plaintiff ({directionCounts['Plaintiff']})</option>

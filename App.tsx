@@ -70,25 +70,24 @@ const App: React.FC = () => {
       const data = await loadFromGoogleSheets();
       
       if (data) {
+        // We set this to true to prevent the state updates from triggering an immediate 'save' back to cloud
         isInitialLoadRef.current = true; 
         
         setCases([...(data.cases || [])]);
         setAdvocates([...(data.advocates || [])]);
         
         if (data.caseTypes && data.caseTypes.length > 0) {
-            setCaseTypes(prev => {
-                const existingNames = new Set(prev.map(t => t.name.toLowerCase()));
-                const newTypes = data.caseTypes!.filter(t => !existingNames.has(t.name.toLowerCase()));
-                return [...prev, ...newTypes];
-            });
+            setCaseTypes(data.caseTypes);
         }
         
         if (data.courtNames && data.courtNames.length > 0) {
-            setCourtNames(prev => Array.from(new Set([...prev, ...data.courtNames!])));
+            setCourtNames(data.courtNames);
         }
         
         setLastSynced(`Updated ${new Date().toLocaleTimeString()}`);
-        setTimeout(() => { isInitialLoadRef.current = false; }, 2000);
+        
+        // Use a longer timeout for initial load to ensure state settles
+        setTimeout(() => { isInitialLoadRef.current = false; }, 2500);
       }
     } catch (error) {
       console.error("Cloud load error:", error);
@@ -116,7 +115,7 @@ const App: React.FC = () => {
       } finally {
         setIsSyncing(false);
       }
-    }, 3000);
+    }, 4000); // 4s debounce
 
     return () => {
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);

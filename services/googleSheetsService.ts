@@ -39,6 +39,7 @@ export async function syncToGoogleSheets(data: {
 }) {
   try {
     // Construct the "Type" sheet data by combining Case Types and Court Names
+    // We send the full list to overwrite/update the Type sheet
     const maxLength = Math.max(data.caseTypes.length, data.courtNames.length);
     const typesPayload = [];
     for (let i = 0; i < maxLength; i++) {
@@ -78,7 +79,7 @@ export async function syncToGoogleSheets(data: {
           "Mode": p.notes || ""
         };
       })),
-      types: typesPayload, // Sync master lists to "Type" sheet
+      types: typesPayload, // Sync master lists
       timestamp: new Date().toISOString()
     });
 
@@ -108,6 +109,7 @@ export async function loadFromGoogleSheets() {
     if (!response.ok) throw new Error(`Google Script returned HTTP ${response.status}`);
     
     let text = await response.text();
+    // Basic cleanup for some GAS responses
     if (text.includes('}{')) {
         text = text.split('}{')[0] + '}';
     }
@@ -116,10 +118,13 @@ export async function loadFromGoogleSheets() {
     try {
         result = JSON.parse(text);
     } catch (e) {
+        console.error("Failed to parse cloud JSON", e);
         return null;
     }
 
-    if (!result || !result.cases) return null;
+    // Critical change: We return the result as long as it exists, 
+    // even if cases/advocates are empty arrays.
+    if (!result) return null;
 
     const advocates: Advocate[] = (result.advocates || []).map((a: any, idx: number) => {
         const name = fuzzyGet(a, ["Advocate Name", "Advocate", "Name"]) || "Unknown Advocate";
@@ -143,7 +148,8 @@ export async function loadFromGoogleSheets() {
     }));
 
     const paymentsRaw = result.payments || [];
-    const cases: Case[] = result.cases.map((c: any, idx: number) => {
+    const rawCases = result.cases || [];
+    const cases: Case[] = rawCases.map((c: any, idx: number) => {
         const caseNo = String(fuzzyGet(c, ["Case No", "Case Number"])) || `Row-${idx + 1}`;
         const advName = fuzzyGet(c, ["Advocate"]);
         const typeName = fuzzyGet(c, ["Case Type", "Type"]) || "General";

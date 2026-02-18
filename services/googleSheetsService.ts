@@ -87,6 +87,7 @@ export async function syncToGoogleSheets(data: {
       advocates: data.advocates.map(adv => ({
         "Advocate Name": adv.name,
         "Mobile": adv.phone || "",
+        "Email": adv.email || "", // FIXED: Added Email field here
         "_id": adv.id
       })),
       payments: data.cases.flatMap(c => c.feePayments.map(p => {

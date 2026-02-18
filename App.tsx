@@ -105,6 +105,7 @@ const App: React.FC = () => {
     syncTimeoutRef.current = setTimeout(async () => {
       setIsSyncing(true);
       try {
+        // We pass the full state to the sync service which will now double-check for any missing entries
         await syncToGoogleSheets({ cases, advocates, caseTypes, courtNames });
         setLastSynced(`Saved ${new Date().toLocaleTimeString()}`);
       } catch (error) {
@@ -112,7 +113,7 @@ const App: React.FC = () => {
       } finally {
         setIsSyncing(false);
       }
-    }, 2000); // Shortened debounce for faster feedback
+    }, 2000); 
 
     return () => {
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
@@ -159,13 +160,13 @@ const App: React.FC = () => {
   }, [handleDeselect]);
 
   const handleSaveCase = useCallback((caseToSave: Case) => {
-    // Check if the court name is new and add to master list immediately
+    // Immediate capture of new Court Name for the master list
     if (caseToSave.courtName) {
         const newCourt = caseToSave.courtName.trim();
         setCourtNames(prev => {
             const alreadyExists = prev.some(c => c.toLowerCase() === newCourt.toLowerCase());
             if (alreadyExists) return prev;
-            return Array.from(new Set([...prev, newCourt]));
+            return [...prev, newCourt].sort();
         });
     }
 
@@ -212,7 +213,7 @@ const App: React.FC = () => {
         }
         const newType: CaseType = { id: `ct-${Date.now()}`, name: normalizedName };
         existingId = newType.id;
-        return [...prev, newType];
+        return [...prev, newType].sort((a,b) => a.name.localeCompare(b.name));
     });
     return existingId;
   }, []);

@@ -38,19 +38,32 @@ export async function syncToGoogleSheets(data: {
   courtNames: string[]
 }) {
   try {
-    // Prepare the "Type" sheet payload. 
-    // This creates an array of objects where each object is a row.
-    // Row 1: Case Type 1, Court Name 1
-    // Row 2: Case Type 2, Court Name 2...
-    const maxLength = Math.max(data.caseTypes.length, data.courtNames.length);
+    // 1. Gather all unique Case Type names from Master List AND actual Cases
+    const allCaseTypeNames = new Set<string>();
+    data.caseTypes.forEach(t => allCaseTypeNames.add(t.name.trim()));
+    data.cases.forEach(c => {
+        const typeObj = data.caseTypes.find(t => t.id === c.caseTypeId);
+        if (typeObj) allCaseTypeNames.add(typeObj.name.trim());
+    });
+    const finalCaseTypes = Array.from(allCaseTypeNames).filter(Boolean).sort();
+
+    // 2. Gather all unique Court Names from Master List AND actual Cases
+    const allCourtNames = new Set<string>();
+    data.courtNames.forEach(c => allCourtNames.add(c.trim()));
+    data.cases.forEach(c => {
+        if (c.courtName) allCourtNames.add(c.courtName.trim());
+    });
+    const finalCourtNames = Array.from(allCourtNames).filter(Boolean).sort();
+
+    // 3. Prepare the "Type" sheet payload (Aligning Col A: Case Type, Col B: Court Name)
+    const maxLength = Math.max(finalCaseTypes.length, finalCourtNames.length);
     const typesPayload = [];
     
     for (let i = 0; i < maxLength; i++) {
         const row: Record<string, string> = {
-            "Case Type": data.caseTypes[i]?.name || "",
-            "Court Name": data.courtNames[i] || ""
+            "Case Type": finalCaseTypes[i] || "",
+            "Court Name": finalCourtNames[i] || ""
         };
-        // Only add rows that aren't completely empty
         if (row["Case Type"] || row["Court Name"]) {
             typesPayload.push(row);
         }
@@ -86,7 +99,7 @@ export async function syncToGoogleSheets(data: {
           "Mode": p.notes || ""
         };
       })),
-      types: typesPayload, // Sync master list of Courts and Case Types
+      types: typesPayload, // This updates the "Type" sheet specifically
       timestamp: new Date().toISOString()
     });
 

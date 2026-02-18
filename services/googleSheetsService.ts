@@ -38,15 +38,22 @@ export async function syncToGoogleSheets(data: {
   courtNames: string[]
 }) {
   try {
-    // Construct the "Type" sheet data by combining Case Types and Court Names
-    // We send the full list to overwrite/update the Type sheet
+    // Prepare the "Type" sheet payload. 
+    // This creates an array of objects where each object is a row.
+    // Row 1: Case Type 1, Court Name 1
+    // Row 2: Case Type 2, Court Name 2...
     const maxLength = Math.max(data.caseTypes.length, data.courtNames.length);
     const typesPayload = [];
+    
     for (let i = 0; i < maxLength; i++) {
-        typesPayload.push({
+        const row: Record<string, string> = {
             "Case Type": data.caseTypes[i]?.name || "",
             "Court Name": data.courtNames[i] || ""
-        });
+        };
+        // Only add rows that aren't completely empty
+        if (row["Case Type"] || row["Court Name"]) {
+            typesPayload.push(row);
+        }
     }
 
     const payload = JSON.stringify({
@@ -79,7 +86,7 @@ export async function syncToGoogleSheets(data: {
           "Mode": p.notes || ""
         };
       })),
-      types: typesPayload, // Sync master lists
+      types: typesPayload, // Sync master list of Courts and Case Types
       timestamp: new Date().toISOString()
     });
 
@@ -109,7 +116,6 @@ export async function loadFromGoogleSheets() {
     if (!response.ok) throw new Error(`Google Script returned HTTP ${response.status}`);
     
     let text = await response.text();
-    // Basic cleanup for some GAS responses
     if (text.includes('}{')) {
         text = text.split('}{')[0] + '}';
     }
@@ -122,8 +128,6 @@ export async function loadFromGoogleSheets() {
         return null;
     }
 
-    // Critical change: We return the result as long as it exists, 
-    // even if cases/advocates are empty arrays.
     if (!result) return null;
 
     const advocates: Advocate[] = (result.advocates || []).map((a: any, idx: number) => {
@@ -138,12 +142,18 @@ export async function loadFromGoogleSheets() {
     }).filter(Boolean) as Advocate[];
 
     const cloudTypesRows = result.types || [];
-    const extractedCaseTypeNames = Array.from(new Set(cloudTypesRows.map((t: any) => fuzzyGet(t, ["Case Type"])).filter(Boolean))) as string[];
-    const extractedCourtNames = Array.from(new Set(cloudTypesRows.map((t: any) => fuzzyGet(t, ["Court Name"])).filter(Boolean))) as string[];
+    
+    // Extract unique case types and court names from the Type sheet columns
+    const extractedCaseTypeNames = Array.from(new Set(
+        cloudTypesRows.map((t: any) => fuzzyGet(t, ["Case Type"])).filter(Boolean)
+    )) as string[];
+    
+    const extractedCourtNames = Array.from(new Set(
+        cloudTypesRows.map((t: any) => fuzzyGet(t, ["Court Name"])).filter(Boolean)
+    )) as string[];
 
-    // Ensure we have IDs for the types
-    const caseTypes: CaseType[] = extractedCaseTypeNames.map(name => ({
-        id: `ct-${name.toLowerCase().replace(/\s+/g, '-')}`,
+    const caseTypes: CaseType[] = extractedCaseTypeNames.map((name, idx) => ({
+        id: `ct-${idx}-${name.toLowerCase().replace(/\s+/g, '-')}`,
         name: name
     }));
 

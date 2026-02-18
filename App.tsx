@@ -70,7 +70,6 @@ const App: React.FC = () => {
       const data = await loadFromGoogleSheets();
       
       if (data) {
-        // We set this to true to prevent the state updates from triggering an immediate 'save' back to cloud
         isInitialLoadRef.current = true; 
         
         setCases([...(data.cases || [])]);
@@ -85,9 +84,7 @@ const App: React.FC = () => {
         }
         
         setLastSynced(`Updated ${new Date().toLocaleTimeString()}`);
-        
-        // Use a longer timeout for initial load to ensure state settles
-        setTimeout(() => { isInitialLoadRef.current = false; }, 2500);
+        setTimeout(() => { isInitialLoadRef.current = false; }, 2000);
       }
     } catch (error) {
       console.error("Cloud load error:", error);
@@ -115,7 +112,7 @@ const App: React.FC = () => {
       } finally {
         setIsSyncing(false);
       }
-    }, 4000); // 4s debounce
+    }, 2000); // Shortened debounce for faster feedback
 
     return () => {
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
@@ -162,9 +159,14 @@ const App: React.FC = () => {
   }, [handleDeselect]);
 
   const handleSaveCase = useCallback((caseToSave: Case) => {
-    // Check if the court name is new and add to master list
-    if (caseToSave.courtName && !courtNames.some(c => c.toLowerCase() === caseToSave.courtName.toLowerCase())) {
-        setCourtNames(prev => Array.from(new Set([...prev, caseToSave.courtName])));
+    // Check if the court name is new and add to master list immediately
+    if (caseToSave.courtName) {
+        const newCourt = caseToSave.courtName.trim();
+        setCourtNames(prev => {
+            const alreadyExists = prev.some(c => c.toLowerCase() === newCourt.toLowerCase());
+            if (alreadyExists) return prev;
+            return Array.from(new Set([...prev, newCourt]));
+        });
     }
 
     setCases(prev => {
@@ -174,7 +176,7 @@ const App: React.FC = () => {
     });
     setActiveCaseId(caseToSave.id);
     setIsCreatingNewCase(false);
-  }, [courtNames]);
+  }, []);
 
   const handleDeleteCase = useCallback((caseId: string) => {
     setCases(prev => prev.filter(c => c.id !== caseId));
@@ -201,13 +203,19 @@ const App: React.FC = () => {
     const normalizedName = name.trim();
     if (!normalizedName) return '';
     
-    const existing = caseTypes.find(t => t.name.toLowerCase() === normalizedName.toLowerCase());
-    if (existing) return existing.id;
-
-    const newType: CaseType = { id: `ct-${Date.now()}`, name: normalizedName };
-    setCaseTypes(prev => [...prev, newType]);
-    return newType.id;
-  }, [caseTypes]);
+    let existingId = '';
+    setCaseTypes(prev => {
+        const existing = prev.find(t => t.name.toLowerCase() === normalizedName.toLowerCase());
+        if (existing) {
+            existingId = existing.id;
+            return prev;
+        }
+        const newType: CaseType = { id: `ct-${Date.now()}`, name: normalizedName };
+        existingId = newType.id;
+        return [...prev, newType];
+    });
+    return existingId;
+  }, []);
 
   const handleAddPayment = useCallback((caseId: string, payment: Omit<FeePayment, 'id'>) => {
     setCases(prev => prev.map(c => {

@@ -8,6 +8,7 @@ interface DashboardProps {
   cases: Case[];
   allCases: Case[];
   caseTypes: CaseType[];
+  courtNames: string[];
   onAddCaseType: (name: string) => void;
   onSelectCase: (caseId: string) => void;
   onNewCase: () => void;
@@ -30,9 +31,7 @@ const FilterSelect: React.FC<{ label: string; value: string; onChange: (e: React
     </div>
 );
 
-const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, onAddCaseType, onSelectCase, onNewCase, filters, onFilterChange }) => {
-  const [newCaseTypeName, setNewCaseTypeName] = useState('');
-
+const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, courtNames, onAddCaseType, onSelectCase, onNewCase, filters, onFilterChange }) => {
   const totalFees = useMemo(() => {
     return allCases.reduce((sum, c) => sum + c.feePayments.reduce((pSum, p) => pSum + p.amount, 0), 0);
   }, [allCases]);
@@ -45,23 +44,31 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, onAdd
       onFilterChange({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All' });
   };
 
-  // Calculate counts for each court name
-  const courtNamesWithCounts = useMemo(() => {
+  // Calculate counts for each court name based on master list
+  const sortedCourtList = useMemo(() => {
     const counts: Record<string, number> = {};
     allCases.forEach(c => {
         counts[c.courtName] = (counts[c.courtName] || 0) + 1;
     });
-    return Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [allCases]);
+    // Ensure all courts in courtNames are represented, even if count is 0
+    const list = courtNames.map(name => ({
+        name,
+        count: counts[name] || 0
+    }));
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [allCases, courtNames]);
 
-  // Calculate counts for each case type
-  const caseTypeCounts = useMemo(() => {
+  // Calculate counts for each case type based on master list
+  const sortedCaseTypeList = useMemo(() => {
       const counts: Record<string, number> = {};
       allCases.forEach(c => {
           counts[c.caseTypeId] = (counts[c.caseTypeId] || 0) + 1;
       });
-      return counts;
-  }, [allCases]);
+      return caseTypes.map(ct => ({
+          ...ct,
+          count: counts[ct.id] || 0
+      })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allCases, caseTypes]);
 
   // Calculate direction counts
   const directionCounts = useMemo(() => {
@@ -102,18 +109,18 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, onAdd
           <div className="flex flex-col sm:flex-row items-end gap-4">
               <FilterSelect label="Case Type" value={filters.caseTypeId} onChange={handleFilter('caseTypeId')}>
                 <option value="All">All Types ({allCases.length})</option>
-                {caseTypes.map(ct => (
+                {sortedCaseTypeList.map(ct => (
                     <option key={ct.id} value={ct.id}>
-                        {ct.name} ({caseTypeCounts[ct.id] || 0})
+                        {ct.name} ({ct.count})
                     </option>
                 ))}
               </FilterSelect>
               
               <FilterSelect label="Court Name" value={filters.courtName} onChange={handleFilter('courtName')}>
                 <option value="All">All Courts ({allCases.length})</option>
-                {courtNamesWithCounts.map(([name, count]) => (
-                    <option key={name} value={name}>
-                        {name} ({count})
+                {sortedCourtList.map(court => (
+                    <option key={court.name} value={court.name}>
+                        {court.name} ({court.count})
                     </option>
                 ))}
               </FilterSelect>

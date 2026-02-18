@@ -69,30 +69,25 @@ const App: React.FC = () => {
     try {
       const data = await loadFromGoogleSheets();
       
-      // If data is null, the fetch failed entirely (e.g. network error)
-      // but if data is an object, we proceed to update the app.
       if (data) {
         isInitialLoadRef.current = true; 
         
-        // Force array spread to ensure we have a fresh reference and handle empty arrays correctly
         setCases([...(data.cases || [])]);
         setAdvocates([...(data.advocates || [])]);
         
         if (data.caseTypes && data.caseTypes.length > 0) {
             setCaseTypes(prev => {
                 const existingNames = new Set(prev.map(t => t.name.toLowerCase()));
-                const newTypes = data.caseTypes.filter(t => !existingNames.has(t.name.toLowerCase()));
+                const newTypes = data.caseTypes!.filter(t => !existingNames.has(t.name.toLowerCase()));
                 return [...prev, ...newTypes];
             });
         }
         
         if (data.courtNames && data.courtNames.length > 0) {
-            setCourtNames(prev => Array.from(new Set([...prev, ...data.courtNames])));
+            setCourtNames(prev => Array.from(new Set([...prev, ...data.courtNames!])));
         }
         
         setLastSynced(`Updated ${new Date().toLocaleTimeString()}`);
-        
-        // Short delay before allowing auto-sync to resume, preventing "save loops"
         setTimeout(() => { isInitialLoadRef.current = false; }, 2000);
       }
     } catch (error) {
@@ -114,19 +109,19 @@ const App: React.FC = () => {
     syncTimeoutRef.current = setTimeout(async () => {
       setIsSyncing(true);
       try {
-        await syncToGoogleSheets({ cases, advocates, caseTypes });
+        await syncToGoogleSheets({ cases, advocates, caseTypes, courtNames });
         setLastSynced(`Saved ${new Date().toLocaleTimeString()}`);
       } catch (error) {
         console.error("Auto-sync error:", error);
       } finally {
         setIsSyncing(false);
       }
-    }, 3000); // 3s debounce for smoother editing
+    }, 3000);
 
     return () => {
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
-  }, [cases, advocates, caseTypes]);
+  }, [cases, advocates, caseTypes, courtNames]);
 
   const [currentView, setCurrentView] = useState<'cases' | 'advocates'>('cases');
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
@@ -168,6 +163,11 @@ const App: React.FC = () => {
   }, [handleDeselect]);
 
   const handleSaveCase = useCallback((caseToSave: Case) => {
+    // Check if the court name is new and add to master list
+    if (caseToSave.courtName && !courtNames.some(c => c.toLowerCase() === caseToSave.courtName.toLowerCase())) {
+        setCourtNames(prev => Array.from(new Set([...prev, caseToSave.courtName])));
+    }
+
     setCases(prev => {
       const exists = prev.some(c => c.id === caseToSave.id);
       if (exists) return prev.map(c => c.id === caseToSave.id ? caseToSave : c);
@@ -175,7 +175,7 @@ const App: React.FC = () => {
     });
     setActiveCaseId(caseToSave.id);
     setIsCreatingNewCase(false);
-  }, []);
+  }, [courtNames]);
 
   const handleDeleteCase = useCallback((caseId: string) => {
     setCases(prev => prev.filter(c => c.id !== caseId));
@@ -276,6 +276,7 @@ const App: React.FC = () => {
               cases={filteredCases} 
               allCases={cases} 
               caseTypes={caseTypes} 
+              courtNames={courtNames}
               onAddCaseType={(name) => handleAddCaseType(name)}
               onSelectCase={handleSelectCase}
               onNewCase={handleInitiateNewCase}

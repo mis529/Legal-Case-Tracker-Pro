@@ -99,9 +99,9 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
             const url = await uploadFileToDrive(file, formData.caseNumber);
             setFormData(prev => ({ ...prev, documentUrl: url }));
             alert('File uploaded successfully!');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Upload failed:', error);
-            alert('Failed to upload file. Please check your connection.');
+            alert(`Upload failed: ${error.message || 'Unknown error'}. Please ensure your Apps Script is deployed as a Web App with 'Anyone' access and you have used the correct Script URL.`);
         } finally {
             setIsUploading(false);
         }

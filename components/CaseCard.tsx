@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Case, CaseType } from '../types';
-import { CalendarIcon, ArrowUpRightIcon, ArrowDownLeftIcon } from './icons';
+import { Calendar, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface CaseCardProps {
   caseData: Case;
@@ -33,15 +34,19 @@ const CaseCard: React.FC<CaseCardProps> = ({ caseData, caseTypes, onSelectCase }
     dateBadgeColor = 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
   }
 
-  const DirectionIcon = caseData.caseDirection === 'Plaintiff' ? ArrowUpRightIcon : ArrowDownLeftIcon;
+  const DirectionIcon = caseData.caseDirection === 'Plaintiff' ? ArrowUpRight : ArrowDownLeft;
   const directionColor = caseData.caseDirection === 'Plaintiff' ? 'text-green-500' : 'text-red-500';
 
   const caseTypeName = caseTypes.find(ct => ct.id === caseData.caseTypeId)?.name || 'Unknown Type';
 
   return (
-    <div
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ y: -5, transition: { duration: 0.2 } }}
       onClick={() => onSelectCase(caseData.id)}
-      className="bg-white dark:bg-slate-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer border border-transparent hover:border-blue-500 overflow-hidden transform hover:-translate-y-1"
+      className="bg-white dark:bg-slate-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer border border-transparent hover:border-blue-500 overflow-hidden"
     >
       <div className="p-6">
         <div className="flex justify-between items-start">
@@ -49,7 +54,7 @@ const CaseCard: React.FC<CaseCardProps> = ({ caseData, caseTypes, onSelectCase }
                 {caseTypeName}
             </span>
             <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md ${dateBadgeColor}`}>
-              <CalendarIcon className="h-4 w-4" />
+              <Calendar className="h-4 w-4" />
               {dateText}
             </span>
         </div>
@@ -69,7 +74,7 @@ const CaseCard: React.FC<CaseCardProps> = ({ caseData, caseTypes, onSelectCase }
             <p className="text-md font-semibold text-slate-800 dark:text-white">{hearingDate.toLocaleDateString()}</p>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

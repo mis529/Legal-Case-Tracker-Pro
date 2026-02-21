@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { GavelIcon, BriefcaseIcon, DownloadIcon, RefreshIcon } from './icons';
+import { motion } from 'motion/react';
+import { Gavel, Briefcase, Download, RefreshCw, CloudCheck, Cloud } from 'lucide-react';
 
 interface HeaderProps {
     currentView: 'cases' | 'advocates';
@@ -40,9 +41,14 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-3 overflow-hidden">
-            <GavelIcon className="h-8 w-8 text-blue-600 dark:text-blue-500 shrink-0" />
+            <motion.div
+              whileHover={{ rotate: 15 }}
+              className="bg-blue-600 dark:bg-blue-500 p-1.5 rounded-lg shrink-0"
+            >
+              <Gavel className="h-6 w-6 text-white" />
+            </motion.div>
             <div className="flex flex-col">
-              <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white truncate">
+              <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white truncate leading-tight">
                 Legal Tracker Pro
               </h1>
               <span className="text-[10px] font-bold text-blue-500 uppercase tracking-tighter">
@@ -56,13 +62,13 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
                 <NavButton 
                     isActive={currentView === 'cases'} 
                     onClick={() => handleViewChange('cases')}
-                    icon={<GavelIcon className="h-5 w-5" />}
+                    icon={<Gavel className="h-4 w-4" />}
                     label="Cases"
                 />
                 <NavButton 
                     isActive={currentView === 'advocates'} 
                     onClick={() => handleViewChange('advocates')}
-                    icon={<BriefcaseIcon className="h-5 w-5" />}
+                    icon={<Briefcase className="h-4 w-4" />}
                     label="Advocates"
                 />
             </div>
@@ -71,7 +77,8 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
                 <div className="flex flex-col items-end mr-2 hidden md:flex">
                     <div className="flex items-center gap-1.5">
                         <span className={`w-2 h-2 rounded-full transition-colors duration-500 ${isSyncing ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'}`}></span>
-                        <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                        <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                            {isSyncing ? <Cloud className="h-2.5 w-2.5 animate-bounce" /> : <CloudCheck className="h-2.5 w-2.5" />}
                             {isSyncing ? 'Saving' : 'Synced'}
                         </span>
                     </div>
@@ -87,14 +94,14 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
                     className="p-2 rounded-full text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
                     title="Force Refresh Data"
                 >
-                    <RefreshIcon className={`h-5 w-5 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`h-5 w-5 ${isSyncing ? 'animate-spin' : ''}`} />
                 </button>
                 <button 
                     onClick={onExport}
                     className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
                     title="Local Backup"
                 >
-                    <DownloadIcon className="h-5 w-5" />
+                    <Download className="h-5 w-5" />
                 </button>
             </div>
           </nav>

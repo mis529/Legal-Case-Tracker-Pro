@@ -8,6 +8,7 @@ import AdvocateDashboard from './components/AdvocateDashboard';
 import AdvocateDetail from './components/AdvocateDetail';
 import AdvocateForm from './components/AdvocateForm';
 import { syncToGoogleSheets, loadFromGoogleSheets } from './services/googleSheetsService';
+import { motion, AnimatePresence } from 'motion/react';
 
 const App: React.FC = () => {
   const [caseTypes, setCaseTypes] = useState<CaseType[]>(() => {
@@ -126,7 +127,7 @@ const App: React.FC = () => {
   const [isCreatingNewAdvocate, setIsCreatingNewAdvocate] = useState<boolean>(false);
   const [editingAdvocate, setEditingAdvocate] = useState<Advocate | null>(null);
 
-  const [filters, setFilters] = useState({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All', advocateId: 'All' });
+  const [filters, setFilters] = useState({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All', advocateId: 'All', hearingDate: '' });
 
   const handleSelectCase = useCallback((caseId: string) => {
     setActiveCaseId(caseId);
@@ -245,7 +246,14 @@ const App: React.FC = () => {
       const matchesCourt = filters.courtName === 'All' || c.courtName === filters.courtName;
       const matchesDirection = filters.caseDirection === 'All' || c.caseDirection === filters.caseDirection;
       const matchesAdvocate = filters.advocateId === 'All' || c.advocateId === filters.advocateId;
-      return matchesType && matchesCourt && matchesDirection && matchesAdvocate;
+      
+      let matchesDate = true;
+      if (filters.hearingDate) {
+        const caseDate = new Date(c.nextHearingDate).toISOString().split('T')[0];
+        matchesDate = caseDate === filters.hearingDate;
+      }
+      
+      return matchesType && matchesCourt && matchesDirection && matchesAdvocate && matchesDate;
     });
   }, [cases, filters]);
 
@@ -266,59 +274,96 @@ const App: React.FC = () => {
       />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentView === 'cases' ? (
-          activeCaseId || isCreatingNewCase ? (
-            <CaseDetail 
-              caseData={activeCase} 
-              advocates={advocates} 
-              caseTypes={caseTypes} 
-              courtNames={courtNames}
-              onSave={handleSaveCase} 
-              onBack={handleDeselect}
-              onDelete={handleDeleteCase}
-              onAddCaseType={handleAddCaseType}
-            />
-          ) : (
-            <Dashboard 
-              cases={filteredCases} 
-              allCases={cases} 
-              caseTypes={caseTypes} 
-              courtNames={courtNames}
-              advocates={advocates}
-              onAddCaseType={(name) => handleAddCaseType(name)}
-              onSelectCase={handleSelectCase}
-              onNewCase={handleInitiateNewCase}
-              filters={filters}
-              onFilterChange={setFilters}
-            />
-          )
-        ) : (
-          activeAdvocateId || isCreatingNewAdvocate || editingAdvocate ? (
-            editingAdvocate || isCreatingNewAdvocate ? (
-                <AdvocateForm 
-                    initialData={editingAdvocate} 
-                    onSave={handleSaveAdvocate} 
-                    onCancel={handleDeselect} 
+        <AnimatePresence mode="wait">
+          {currentView === 'cases' ? (
+            activeCaseId || isCreatingNewCase ? (
+              <motion.div
+                key="case-detail"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <CaseDetail 
+                  caseData={activeCase} 
+                  advocates={advocates} 
+                  caseTypes={caseTypes} 
+                  courtNames={courtNames}
+                  onSave={handleSaveCase} 
+                  onBack={handleDeselect}
+                  onDelete={handleDeleteCase}
+                  onAddCaseType={handleAddCaseType}
                 />
+              </motion.div>
             ) : (
-                <AdvocateDetail 
-                    advocate={activeAdvocate!} 
-                    cases={cases.filter(c => c.advocateId === activeAdvocateId)} 
-                    onBack={handleDeselect}
-                    onNavigateToCase={handleNavigateToCase}
-                    onEdit={setEditingAdvocate}
-                    onDelete={handleDeleteAdvocate}
-                    onAddPayment={handleAddPayment}
+              <motion.div
+                key="case-dashboard"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <Dashboard 
+                  cases={filteredCases} 
+                  allCases={cases} 
+                  caseTypes={caseTypes} 
+                  courtNames={courtNames}
+                  advocates={advocates}
+                  onAddCaseType={(name) => handleAddCaseType(name)}
+                  onSelectCase={handleSelectCase}
+                  onNewCase={handleInitiateNewCase}
+                  filters={filters}
+                  onFilterChange={setFilters}
                 />
+              </motion.div>
             )
           ) : (
-            <AdvocateDashboard 
-              advocates={advocates} 
-              onSelectAdvocate={handleSelectAdvocate} 
-              onNewAdvocate={() => setIsCreatingNewAdvocate(true)}
-            />
-          )
-        )}
+            activeAdvocateId || isCreatingNewAdvocate || editingAdvocate ? (
+              editingAdvocate || isCreatingNewAdvocate ? (
+                  <motion.div
+                    key="advocate-form"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <AdvocateForm 
+                        initialData={editingAdvocate} 
+                        onSave={handleSaveAdvocate} 
+                        onCancel={handleDeselect} 
+                    />
+                  </motion.div>
+              ) : (
+                  <motion.div
+                    key="advocate-detail"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    <AdvocateDetail 
+                        advocate={activeAdvocate!} 
+                        cases={cases.filter(c => c.advocateId === activeAdvocateId)} 
+                        onBack={handleDeselect}
+                        onNavigateToCase={handleNavigateToCase}
+                        onEdit={setEditingAdvocate}
+                        onDelete={handleDeleteAdvocate}
+                        onAddPayment={handleAddPayment}
+                    />
+                  </motion.div>
+              )
+            ) : (
+              <motion.div
+                key="advocate-dashboard"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <AdvocateDashboard 
+                  advocates={advocates} 
+                  onSelectAdvocate={handleSelectAdvocate} 
+                  onNewAdvocate={() => setIsCreatingNewAdvocate(true)}
+                />
+              </motion.div>
+            )
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

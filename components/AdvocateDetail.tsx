@@ -1,5 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import { Advocate, Case, FeePayment } from '../types';
 import { BackIcon, UserIcon, MoneyIcon, ChevronRightIcon, EditIcon, TrashIcon, PlusIcon } from './icons';
 import AddPaymentModal from './AddPaymentModal';
@@ -62,7 +63,11 @@ const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack
 
   return (
     <>
-    <div className="bg-white dark:bg-slate-800/50 p-6 sm:p-8 rounded-2xl shadow-lg animate-fade-in">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white dark:bg-slate-800/50 p-6 sm:p-8 rounded-2xl shadow-lg"
+    >
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{advocate.name}</h2>
@@ -131,7 +136,7 @@ const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack
           </div>
       </Section>
 
-    </div>
+    </motion.div>
     <AddPaymentModal
       show={isAddingPayment}
       onClose={() => setIsAddingPayment(false)}

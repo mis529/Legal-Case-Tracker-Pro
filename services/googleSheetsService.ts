@@ -82,7 +82,8 @@ export async function syncToGoogleSheets(data: {
         "_advocateId": c.advocateId,
         "_caseDirection": c.caseDirection,
         "_courseOfAction": c.courseOfAction,
-        "_personAppearing": c.personAppearing
+        "_personAppearing": c.personAppearing,
+        "_documentUrl": c.documentUrl || ""
       })),
       advocates: data.advocates.map(adv => ({
         "Advocate Name": adv.name,
@@ -117,6 +118,40 @@ export async function syncToGoogleSheets(data: {
     console.error("Critical Cloud Sync Error:", error);
     throw error;
   }
+}
+
+export async function uploadFileToDrive(file: File, caseNumber: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = (reader.result as string).split(',')[1];
+        const payload = {
+          action: "upload",
+          fileName: `${caseNumber}_${file.name}`,
+          mimeType: file.type,
+          data: base64,
+          folderId: "1_w95EC53rQCz5m8G2_OfH4xlWA1hfqnV"
+        };
+
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (result.status === "success") {
+          resolve(result.url);
+        } else {
+          reject(new Error(result.message || "Upload failed"));
+        }
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export async function loadFromGoogleSheets() {
@@ -202,6 +237,7 @@ export async function loadFromGoogleSheets() {
             personAppearing: String(fuzzyGet(c, ["Person Appearing", "_personAppearing"])) || "",
             advocateComments: String(fuzzyGet(c, ["Remarks", "Comments", "_advocateComments"])) || "",
             feePayments: casePayments,
+            documentUrl: cleanValue(fuzzyGet(c, ["Document URL", "_documentUrl"])) || "",
             createdAt: safeDate(fuzzyGet(c, ["Created Date", "Created"]))
         };
     });

@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { Advocate } from '../types';
 
 interface AdvocateFormProps {
@@ -38,7 +39,12 @@ const AdvocateForm: React.FC<AdvocateFormProps> = ({ initialData, onSave, onCanc
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800/50 p-6 sm:p-8 rounded-2xl shadow-lg space-y-6 max-w-2xl mx-auto">
+        <motion.form 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onSubmit={handleSubmit} 
+            className="bg-white dark:bg-slate-800/50 p-6 sm:p-8 rounded-2xl shadow-lg space-y-6 max-w-2xl mx-auto"
+        >
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{initialData ? 'Edit Advocate' : 'Create New Advocate'}</h2>
             
             <div className="space-y-4">
@@ -51,7 +57,7 @@ const AdvocateForm: React.FC<AdvocateFormProps> = ({ initialData, onSave, onCanc
                 <button type="button" onClick={onCancel} className="bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 text-slate-800 dark:text-slate-200 font-bold py-2 px-4 rounded-lg">Cancel</button>
                 <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Save Advocate</button>
             </div>
-        </form>
+        </motion.form>
     );
 };
 

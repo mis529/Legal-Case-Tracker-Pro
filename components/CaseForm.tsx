@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { Case, CaseType, FeePayment, Advocate, CaseDirection } from '../types';
 import { suggestCourseOfAction } from '../services/geminiService';
 import { SparklesIcon, TrashIcon, PlusIcon } from './icons';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface CaseFormProps {
   initialData: Case | null;
@@ -208,16 +209,50 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
             
             <div>
               <Textarea label="Course of Action" name="courseOfAction" value={formData.courseOfAction} onChange={handleChange} required />
-              <div className="mt-2 flex items-start flex-wrap gap-2">
-                <button type="button" onClick={handleGetSuggestions} disabled={isSuggesting} className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold py-1.5 px-3 rounded-md text-sm transition-colors disabled:bg-violet-400">
-                    <SparklesIcon className="h-4 w-4" />
-                    {isSuggesting ? 'Thinking...' : 'AI Suggestions'}
-                </button>
-                 {suggestions.map((s, i) => (
-                    <button key={i} type="button" onClick={() => setFormData(prev => ({...prev, courseOfAction: prev.courseOfAction + (prev.courseOfAction ? '\n' : '') + `- ${s}`}))} className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-sm py-1 px-2 rounded-md">
-                        {s}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                    <button 
+                        type="button" 
+                        onClick={handleGetSuggestions} 
+                        disabled={isSuggesting} 
+                        className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-2 px-4 rounded-lg text-sm shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                    >
+                        <SparklesIcon className={`h-4 w-4 ${isSuggesting ? 'animate-pulse' : ''}`} />
+                        {isSuggesting ? 'Analyzing Case...' : 'Get AI Strategic Suggestions'}
                     </button>
-                ))}
+                    {suggestions.length > 0 && (
+                        <button 
+                            type="button" 
+                            onClick={() => setSuggestions([])} 
+                            className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        >
+                            Clear Suggestions
+                        </button>
+                    )}
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                    <AnimatePresence>
+                        {suggestions.map((s, i) => (
+                            <motion.button 
+                                key={i} 
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                transition={{ delay: i * 0.1 }}
+                                type="button" 
+                                onClick={() => {
+                                    setFormData(prev => ({...prev, courseOfAction: prev.courseOfAction + (prev.courseOfAction ? '\n' : '') + `- ${s}`}));
+                                    setSuggestions(prev => prev.filter((_, idx) => idx !== i));
+                                }} 
+                                className="group relative bg-slate-100 dark:bg-slate-700/50 hover:bg-blue-50 dark:hover:bg-blue-900/30 border border-slate-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-700 text-slate-700 dark:text-slate-300 text-xs py-2 px-3 rounded-lg text-left transition-all max-w-xs"
+                            >
+                                <span className="block pr-4">{s}</span>
+                                <PlusIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
+                            </motion.button>
+                        ))}
+                    </AnimatePresence>
+                </div>
               </div>
             </div>
 

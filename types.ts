@@ -32,5 +32,6 @@ export interface Case {
   personAppearing: string;
   advocateComments: string;
   feePayments: FeePayment[];
+  documentUrl?: string; // Link to uploaded file in Google Drive
   createdAt: string; // ISO string format
 }

@@ -1,8 +1,11 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Case, CaseType, Advocate } from '../types';
 import CaseList from './CaseList';
+import DashboardStats from './DashboardStats';
 import { PlusIcon, MoneyIcon, TrashIcon } from './icons';
+import { motion } from 'motion/react';
+import { LayoutDashboard } from 'lucide-react';
 
 interface DashboardProps {
   cases: Case[];
@@ -13,8 +16,8 @@ interface DashboardProps {
   onAddCaseType: (name: string) => void;
   onSelectCase: (caseId: string) => void;
   onNewCase: () => void;
-  filters: { caseTypeId: string; courtName: string; caseDirection: string; advocateId: string; };
-  onFilterChange: React.Dispatch<React.SetStateAction<{ caseTypeId: string; courtName: string; caseDirection: string; advocateId: string; }>>;
+  filters: { caseTypeId: string; courtName: string; caseDirection: string; advocateId: string; hearingDate: string; };
+  onFilterChange: React.Dispatch<React.SetStateAction<{ caseTypeId: string; courtName: string; caseDirection: string; advocateId: string; hearingDate: string; }>>;
 }
 
 const FilterSelect: React.FC<{ label: string; value: string; onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void; children: React.ReactNode }> = ({ label, value, onChange, children }) => (
@@ -37,12 +40,12 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
     return allCases.reduce((sum, c) => sum + c.feePayments.reduce((pSum, p) => pSum + p.amount, 0), 0);
   }, [allCases]);
 
-  const handleFilter = (filterName: 'caseTypeId' | 'courtName' | 'caseDirection' | 'advocateId') => (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleFilter = (filterName: 'caseTypeId' | 'courtName' | 'caseDirection' | 'advocateId' | 'hearingDate') => (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     onFilterChange(prev => ({...prev, [filterName]: e.target.value }));
   }
 
   const resetFilters = () => {
-      onFilterChange({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All', advocateId: 'All' });
+      onFilterChange({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All', advocateId: 'All', hearingDate: '' });
   };
 
   const sortedCourtList = useMemo(() => {
@@ -89,13 +92,30 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
       return counts;
   }, [allCases]);
 
-  const hasActiveFilters = filters.caseTypeId !== 'All' || filters.courtName !== 'All' || filters.caseDirection !== 'All' || filters.advocateId !== 'All';
+  const hasActiveFilters = filters.caseTypeId !== 'All' || filters.courtName !== 'All' || filters.caseDirection !== 'All' || filters.advocateId !== 'All' || filters.hearingDate !== '';
+
+  const chartData = useMemo(() => {
+    return sortedCaseTypeList.filter(ct => ct.count > 0).map(ct => ({
+      name: ct.name,
+      count: ct.count
+    }));
+  }, [sortedCaseTypeList]);
+
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="space-y-6"
+    >
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Case Dashboard</h2>
+          <div className="flex items-center gap-2">
+            <LayoutDashboard className="h-8 w-8 text-blue-600" />
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Case Dashboard</h2>
+          </div>
           <div className="mt-1 flex items-center gap-3">
             <p className="text-slate-500 dark:text-slate-400">
               Showing {cases.length} of {allCases.length} total cases.
@@ -114,6 +134,8 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
           New Case
         </button>
       </div>
+
+      <DashboardStats cases={cases} caseTypes={caseTypes} />
 
       <div className="p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm space-y-4">
           <div className="flex flex-wrap items-end gap-4">
@@ -150,6 +172,18 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
                  <option value="Defendant">Defendant ({directionCounts['Defendant']})</option>
               </FilterSelect>
 
+              <div className="flex flex-col gap-1 w-full sm:w-auto">
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                      Hearing Date
+                  </label>
+                  <input 
+                      type="date"
+                      value={filters.hearingDate}
+                      onChange={handleFilter('hearingDate')}
+                      className="w-full sm:min-w-[180px] text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 py-2 px-3 transition-all"
+                  />
+              </div>
+
               {hasActiveFilters && (
                   <button 
                     onClick={resetFilters}
@@ -163,7 +197,7 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
       </div>
 
       <CaseList cases={cases} caseTypes={caseTypes} onSelectCase={onSelectCase} />
-    </div>
+    </motion.div>
   );
 };
 

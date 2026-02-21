@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Case, FeePayment, Advocate, CaseType } from '../types';
 import CaseForm from './CaseForm';
-import { BackIcon, EditIcon, TrashIcon, UserIcon, GavelIcon, CalendarIcon, ArrowUpRightIcon, ArrowDownLeftIcon } from './icons';
+import { BackIcon, EditIcon, TrashIcon, UserIcon, GavelIcon, CalendarIcon, ArrowUpRightIcon, ArrowDownLeftIcon, FileIcon, CloudIcon } from './icons';
+import { uploadFileToDrive } from '../services/googleSheetsService';
 
 interface CaseDetailProps {
   caseData: Case | null;
@@ -37,10 +38,33 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 
 const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes, courtNames, onSave, onBack, onDelete, onAddCaseType }) => {
   const [isEditing, setIsEditing] = useState<boolean>(!caseData);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = (updatedCase: Case) => {
     onSave(updatedCase);
     setIsEditing(false);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !caseData) return;
+
+    setIsUploading(true);
+    try {
+      const url = await uploadFileToDrive(file, caseData.caseNumber);
+      const updatedCase: Case = {
+        ...caseData,
+        documentUrl: url
+      };
+      onSave(updatedCase);
+      alert('File uploaded successfully!');
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('Failed to upload file. Please check your Apps Script configuration.');
+    } finally {
+      setIsUploading(false);
+    }
   };
   
   const totalFeesPaid = caseData?.feePayments.reduce((sum, p) => sum + p.amount, 0) || 0;
@@ -90,6 +114,57 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes,
             value={<span className={directionColor}>{directionText}</span>} 
         />
       </div>
+
+      <Section title="Documents">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
+          <div className="flex-1">
+            {caseData.documentUrl ? (
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded">
+                  <FileIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Case Document</p>
+                  <a 
+                    href={caseData.documentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:underline font-bold flex items-center gap-1"
+                  >
+                    View / Download from Drive
+                    <ArrowUpRightIcon className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 text-slate-500">
+                <CloudIcon className="h-6 w-6" />
+                <p className="text-sm">No documents uploaded for this case.</p>
+              </div>
+            )}
+          </div>
+          
+          <div>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileUpload} 
+              className="hidden" 
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                isUploading 
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              {isUploading ? 'Uploading...' : (caseData.documentUrl ? 'Replace File' : 'Upload File')}
+            </button>
+          </div>
+        </div>
+      </Section>
 
        <Section title="Course of Action">
           <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{caseData.courseOfAction}</p>

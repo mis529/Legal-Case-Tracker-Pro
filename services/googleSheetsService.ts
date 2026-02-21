@@ -136,10 +136,18 @@ export async function uploadFileToDrive(file: File, caseNumber: string): Promise
 
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: "POST",
-          body: JSON.stringify(payload)
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify(payload),
+          redirect: "follow"
         });
 
-        const result = await response.json();
+        const text = await response.text();
+        let result;
+        try {
+          result = JSON.parse(text);
+        } catch (e) {
+          throw new Error("Invalid response from server");
+        }
         if (result.status === "success") {
           resolve(result.url);
         } else {

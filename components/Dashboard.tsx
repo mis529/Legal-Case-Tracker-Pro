@@ -2,7 +2,6 @@
 import React, { useMemo } from 'react';
 import { Case, CaseType, Advocate } from '../types';
 import CaseList from './CaseList';
-import DashboardStats from './DashboardStats';
 import { PlusIcon, MoneyIcon, TrashIcon } from './icons';
 import { motion } from 'motion/react';
 import { LayoutDashboard } from 'lucide-react';
@@ -94,15 +93,6 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
 
   const hasActiveFilters = filters.caseTypeId !== 'All' || filters.courtName !== 'All' || filters.caseDirection !== 'All' || filters.advocateId !== 'All' || filters.hearingDate !== '';
 
-  const chartData = useMemo(() => {
-    return sortedCaseTypeList.filter(ct => ct.count > 0).map(ct => ({
-      name: ct.name,
-      count: ct.count
-    }));
-  }, [sortedCaseTypeList]);
-
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -134,8 +124,6 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
           New Case
         </button>
       </div>
-
-      <DashboardStats cases={cases} caseTypes={caseTypes} />
 
       <div className="p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm space-y-4">
           <div className="flex flex-wrap items-end gap-4">

@@ -1,12 +1,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-// FIX: Per @google/genai guidelines, use process.env.GEMINI_API_KEY for the Gemini API.
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// FIX: Use lazy initialization to prevent crashing on startup if API key is missing.
+let aiInstance: GoogleGenAI | null = null;
+
+function getAi() {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not set. Please configure it in your environment variables.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+}
 
 export async function suggestCourseOfAction(caseTypeName: string): Promise<string[]> {
-  // FIX: Per @google/genai guidelines, removed check for API_KEY and mock data fallback.
-  // The guidelines state to assume the API key is always available from the environment.
   try {
+    const ai = getAi();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `You are an expert legal strategist. Based on a legal case of type "${caseTypeName}", suggest three potential next strategic courses of action. 

@@ -1,9 +1,10 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Case, CaseType, FeePayment, Advocate, CaseDirection } from '../types';
 import { suggestCourseOfAction } from '../services/geminiService';
-import { SparklesIcon, TrashIcon, PlusIcon } from './icons';
+import { SparklesIcon, TrashIcon, PlusIcon, FileIcon, CloudIcon } from './icons';
 import { motion, AnimatePresence } from 'motion/react';
+import { uploadFileToDrive } from '../services/googleSheetsService';
 
 interface CaseFormProps {
   initialData: Case | null;
@@ -53,6 +54,8 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
     });
     
     const [isSuggesting, setIsSuggesting] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [isCustomCourt, setIsCustomCourt] = useState(false);
     const [isCustomCaseType, setIsCustomCaseType] = useState(false);
@@ -80,6 +83,28 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
         const newPayments = [...formData.feePayments];
         (newPayments[index] as any)[field] = field === 'amount' ? Number(value) : value;
         setFormData(prev => ({...prev, feePayments: newPayments }));
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!formData.caseNumber) {
+            alert("Please enter a Case Number first before uploading documents.");
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            const url = await uploadFileToDrive(file, formData.caseNumber);
+            setFormData(prev => ({ ...prev, documentUrl: url }));
+            alert('File uploaded successfully!');
+        } catch (error) {
+            console.error('Upload failed:', error);
+            alert('Failed to upload file. Please check your connection.');
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const addFeePayment = () => {
@@ -257,6 +282,50 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
             </div>
 
             <Textarea label="Advocate's Comments" name="advocateComments" value={formData.advocateComments} onChange={handleChange} />
+
+            <div>
+                <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-200">Case Document</h3>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
+                    <div className="flex-1">
+                        {formData.documentUrl ? (
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded">
+                                    <FileIcon className="h-6 w-6 text-blue-600" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Document Attached</p>
+                                    <p className="text-xs text-slate-500 truncate max-w-[200px]">{formData.documentUrl}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3 text-slate-500">
+                                <CloudIcon className="h-6 w-6" />
+                                <p className="text-sm">No document uploaded yet.</p>
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            onChange={handleFileUpload} 
+                            className="hidden" 
+                        />
+                        <button 
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                                isUploading 
+                                ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }`}
+                        >
+                            {isUploading ? 'Uploading...' : (formData.documentUrl ? 'Change Document' : 'Upload Document')}
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <div>
                 <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-200">Fee Payments</h3>

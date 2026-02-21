@@ -77,6 +77,7 @@ export async function syncToGoogleSheets(data: {
         "Advocate": data.advocates.find(a => a.id === c.advocateId)?.name || "Unassigned",
         "Next Hearing": c.nextHearingDate,
         "Remarks": c.advocateComments,
+        "Document URL": c.documentUrl || "",
         "Created Date": c.createdAt,
         "_id": c.id,
         "_advocateId": c.advocateId,

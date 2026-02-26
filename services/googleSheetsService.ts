@@ -71,7 +71,7 @@ export async function syncToGoogleSheets(data: {
 
     const payload = JSON.stringify({
       cases: data.cases.map(c => ({
-        "Case No": c.caseNumber,
+        "Party Name": c.partyName,
         "Court": c.courtName,
         "Case Type": data.caseTypes.find(t => t.id === c.caseTypeId)?.name || "Other",
         "Advocate": data.advocates.find(a => a.id === c.advocateId)?.name || "Unassigned",
@@ -95,7 +95,7 @@ export async function syncToGoogleSheets(data: {
       payments: data.cases.flatMap(c => c.feePayments.map(p => {
         const advObj = data.advocates.find(a => a.id === c.advocateId);
         return {
-          "Case No": c.caseNumber,
+          "Party Name": c.partyName,
           "Advocate": advObj?.name || "Unknown",
           "Amount": p.amount,
           "Paid Date": p.date,
@@ -121,7 +121,7 @@ export async function syncToGoogleSheets(data: {
   }
 }
 
-export async function uploadFileToDrive(file: File, caseNumber: string): Promise<string> {
+export async function uploadFileToDrive(file: File, partyName: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async () => {
@@ -129,7 +129,7 @@ export async function uploadFileToDrive(file: File, caseNumber: string): Promise
         const base64 = (reader.result as string).split(',')[1];
         const payload = {
           action: "upload",
-          fileName: `${caseNumber}_${file.name}`,
+          fileName: `${partyName}_${file.name}`,
           mimeType: file.type,
           data: base64,
           folderId: "1_w95EC53rQCz5m8G2_OfH4xlWA1hfqnV"
@@ -223,14 +223,14 @@ export async function loadFromGoogleSheets() {
     const paymentsRaw = result.payments || [];
     const rawCases = result.cases || [];
     const cases: Case[] = rawCases.map((c: any, idx: number) => {
-        const caseNo = String(fuzzyGet(c, ["Case No", "Case Number"])) || `Row-${idx + 1}`;
+        const partyName = String(fuzzyGet(c, ["Party Name", "Person Name", "Case No", "Case Number"])) || `Row-${idx + 1}`;
         const advName = fuzzyGet(c, ["Advocate"]);
         const typeName = fuzzyGet(c, ["Case Type", "Type"]) || "General";
         
         const casePayments: FeePayment[] = paymentsRaw
-            .filter((p: any) => String(fuzzyGet(p, ["Case No"])) === caseNo)
+            .filter((p: any) => String(fuzzyGet(p, ["Party Name", "Case No"])) === partyName)
             .map((p: any, pIdx: number) => ({
-                id: `pay-cloud-${caseNo}-${pIdx}`,
+                id: `pay-cloud-${partyName}-${pIdx}`,
                 amount: Number(fuzzyGet(p, ["Amount"])) || 0,
                 date: safeDate(fuzzyGet(p, ["Paid Date", "Date"])),
                 notes: fuzzyGet(p, ["Mode", "Notes"]) || ""
@@ -240,8 +240,8 @@ export async function loadFromGoogleSheets() {
         const typeObj = caseTypes.find(t => t.name.toLowerCase() === String(typeName).toLowerCase());
 
         return {
-            id: cleanValue(c._id) || `case-cloud-${caseNo}`,
-            caseNumber: caseNo,
+            id: cleanValue(c._id) || `case-cloud-${partyName}`,
+            partyName: partyName,
             caseTypeId: typeObj?.id || (caseTypes.length > 0 ? caseTypes[0].id : "ct-general"),
             courtName: String(fuzzyGet(c, ["Court"])) || "Unspecified Court",
             nextHearingDate: safeDate(fuzzyGet(c, ["Next Hearing", "Hearing Date"])),

@@ -78,7 +78,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ show, onClose, onSave
                         <div className="p-6 space-y-4">
                             <Select label="Assign to Case" value={caseId} onChange={(e) => setCaseId(e.target.value)} required>
                                 {cases.map(c => (
-                                    <option key={c.id} value={c.id}>{c.caseNumber} - {c.courtName}</option>
+                                    <option key={c.id} value={c.id}>{c.partyName} - {c.courtName}</option>
                                 ))}
                             </Select>
                             <Input 

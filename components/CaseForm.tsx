@@ -41,7 +41,7 @@ const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { label: 
 
 const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, courtNames, onSave, onCancel, onAddCaseType }) => {
     const [formData, setFormData] = useState<Omit<Case, 'id' | 'createdAt'>>(() => initialData ? { ...initialData } : {
-        caseNumber: '',
+        partyName: '',
         caseTypeId: caseTypes[0]?.id || '',
         courtName: '',
         nextHearingDate: new Date().toISOString().split('T')[0],
@@ -89,14 +89,14 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (!formData.caseNumber) {
-            alert("Please enter a Case Number first before uploading documents.");
+        if (!formData.partyName) {
+            alert("Please enter a Party Name first before uploading documents.");
             return;
         }
 
         setIsUploading(true);
         try {
-            const url = await uploadFileToDrive(file, formData.caseNumber);
+            const url = await uploadFileToDrive(file, formData.partyName);
             setFormData(prev => ({ ...prev, documentUrl: url }));
             alert('File uploaded successfully!');
         } catch (error: any) {
@@ -154,7 +154,7 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{initialData ? 'Edit Case' : 'Create New Case'}</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input label="Case Number" name="caseNumber" value={formData.caseNumber} onChange={handleChange} required />
+                <Input label="Party Name" name="partyName" value={formData.partyName} onChange={handleChange} required />
                 
                 <div className="relative">
                     {!isCustomCaseType ? (

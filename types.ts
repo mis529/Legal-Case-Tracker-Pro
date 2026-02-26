@@ -22,7 +22,7 @@ export interface Advocate {
 
 export interface Case {
   id:string;
-  caseNumber: string;
+  partyName: string;
   caseTypeId: string;
   courtName: string;
   nextHearingDate: string; // ISO string format

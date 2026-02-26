@@ -121,7 +121,7 @@ const AdvocateDetail: React.FC<AdvocateDetailProps> = ({ advocate, cases, onBack
                       <li key={caseItem.id}>
                         <button onClick={() => onNavigateToCase(caseItem.id)} className="w-full flex items-center justify-between py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 px-2 -mx-2 rounded-md transition-colors">
                             <div>
-                                <p className="font-medium text-slate-800 dark:text-slate-200">{caseItem.caseNumber}</p>
+                                <p className="font-medium text-slate-800 dark:text-slate-200">{caseItem.partyName}</p>
                                 <p className="text-sm text-slate-500 dark:text-slate-400">{caseItem.courtName}</p>
                             </div>
                             <div className="flex items-center gap-4">

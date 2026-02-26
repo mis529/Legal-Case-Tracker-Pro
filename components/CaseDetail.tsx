@@ -52,7 +52,7 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes,
 
     setIsUploading(true);
     try {
-      const url = await uploadFileToDrive(file, caseData.caseNumber);
+      const url = await uploadFileToDrive(file, caseData.partyName);
       const updatedCase: Case = {
         ...caseData,
         documentUrl: url
@@ -86,7 +86,7 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes,
     <div className="bg-white dark:bg-slate-800/50 p-6 sm:p-8 rounded-2xl shadow-lg animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{caseData.caseNumber}</h2>
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{caseData.partyName}</h2>
           <p className="mt-1 text-slate-500 dark:text-slate-400">{caseTypeName}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

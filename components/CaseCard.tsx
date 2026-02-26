@@ -60,8 +60,8 @@ const CaseCard: React.FC<CaseCardProps> = ({ caseData, caseTypes, onSelectCase }
         </div>
         <div className="flex items-center gap-2 mt-4">
              <DirectionIcon className={`h-5 w-5 ${directionColor}`} />
-             <h3 className="text-xl font-bold text-slate-800 dark:text-white truncate" title={caseData.caseNumber}>
-              {caseData.caseNumber}
+             <h3 className="text-xl font-bold text-slate-800 dark:text-white truncate" title={caseData.partyName}>
+              {caseData.partyName}
             </h3>
         </div>
        

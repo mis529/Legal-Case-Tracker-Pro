@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Case, CaseType } from '../types';
-import { Calendar, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Calendar, ArrowUpRight, ArrowDownLeft, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface CaseCardProps {
@@ -63,6 +63,12 @@ const CaseCard: React.FC<CaseCardProps> = ({ caseData, caseTypes, onSelectCase }
              <h3 className="text-xl font-bold text-slate-800 dark:text-white truncate" title={caseData.partyName}>
               {caseData.partyName}
             </h3>
+            {caseData.documentUrls && caseData.documentUrls.length > 0 && (
+              <div className="flex items-center gap-1 text-blue-500 ml-auto" title={`${caseData.documentUrls.length} documents`}>
+                <FileText className="h-4 w-4" />
+                <span className="text-xs font-bold">{caseData.documentUrls.length}</span>
+              </div>
+            )}
         </div>
        
         <p className="mt-1 text-slate-500 dark:text-slate-400 truncate" title={caseData.courtName}>

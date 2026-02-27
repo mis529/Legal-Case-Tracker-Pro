@@ -51,6 +51,7 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
         personAppearing: '',
         advocateComments: '',
         feePayments: [],
+        documentUrls: [],
     });
     
     const [isSuggesting, setIsSuggesting] = useState(false);
@@ -86,8 +87,8 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
         if (!formData.partyName) {
             alert("Please enter a Party Name first before uploading documents.");
@@ -96,15 +97,30 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
 
         setIsUploading(true);
         try {
-            const url = await uploadFileToDrive(file, formData.partyName);
-            setFormData(prev => ({ ...prev, documentUrl: url }));
-            alert('File uploaded successfully!');
+            const uploadedDocs: { name: string, url: string }[] = [];
+            for (let i = 0; i < files.length; i++) {
+                const doc = await uploadFileToDrive(files[i], formData.partyName);
+                uploadedDocs.push(doc);
+            }
+            setFormData(prev => ({ 
+                ...prev, 
+                documentUrls: [...(prev.documentUrls || []), ...uploadedDocs] 
+            }));
+            alert(`${files.length} file(s) uploaded successfully!`);
         } catch (error: any) {
             console.error('Upload failed:', error);
             alert(`Upload failed: ${error.message || 'Unknown error'}. Please ensure your Apps Script is deployed as a Web App with 'Anyone' access and you have used the correct Script URL.`);
         } finally {
             setIsUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
+    };
+
+    const removeDocument = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            documentUrls: (prev.documentUrls || []).filter((_, i) => i !== index)
+        }));
     };
 
     const addFeePayment = () => {
@@ -284,46 +300,59 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
             <Textarea label="Advocate's Comments" name="advocateComments" value={formData.advocateComments} onChange={handleChange} />
 
             <div>
-                <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-200">Case Document</h3>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
-                    <div className="flex-1">
-                        {formData.documentUrl ? (
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded">
-                                    <FileIcon className="h-6 w-6 text-blue-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Document Attached</p>
-                                    <p className="text-xs text-slate-500 truncate max-w-[200px]">{formData.documentUrl}</p>
-                                </div>
-                            </div>
-                        ) : (
+                <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-200">Case Documents</h3>
+                <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
+                        <div className="flex-1">
                             <div className="flex items-center gap-3 text-slate-500">
                                 <CloudIcon className="h-6 w-6" />
-                                <p className="text-sm">No document uploaded yet.</p>
+                                <p className="text-sm">Upload one or more documents for this case.</p>
                             </div>
-                        )}
+                        </div>
+                        <div>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                onChange={handleFileUpload} 
+                                className="hidden" 
+                                multiple
+                            />
+                            <button 
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isUploading}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                                    isUploading 
+                                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                }`}
+                            >
+                                {isUploading ? 'Uploading...' : 'Upload Documents'}
+                            </button>
+                        </div>
                     </div>
-                    <div>
-                        <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            onChange={handleFileUpload} 
-                            className="hidden" 
-                        />
-                        <button 
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploading}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                                isUploading 
-                                ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
-                                : 'bg-blue-600 hover:bg-blue-700 text-white'
-                            }`}
-                        >
-                            {isUploading ? 'Uploading...' : (formData.documentUrl ? 'Change Document' : 'Upload Document')}
-                        </button>
-                    </div>
+
+                    {formData.documentUrls && formData.documentUrls.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {formData.documentUrls.map((doc, index) => (
+                                <div key={index} className="flex items-center justify-between p-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg shadow-sm">
+                                    <div className="flex items-center gap-3 truncate mr-2">
+                                        <FileIcon className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                                        <span className="text-xs text-slate-600 dark:text-slate-300 truncate max-w-[150px]" title={doc.name}>
+                                            {doc.name}
+                                        </span>
+                                    </div>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => removeDocument(index)}
+                                        className="text-red-500 hover:text-red-700 p-1 transition-colors"
+                                    >
+                                        <TrashIcon className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 

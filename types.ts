@@ -20,6 +20,11 @@ export interface Advocate {
   phone?: string;
 }
 
+export interface CaseDocument {
+  name: string;
+  url: string;
+}
+
 export interface Case {
   id:string;
   partyName: string;
@@ -32,6 +37,6 @@ export interface Case {
   personAppearing: string;
   advocateComments: string;
   feePayments: FeePayment[];
-  documentUrl?: string; // Link to uploaded file in Google Drive
+  documentUrls?: CaseDocument[]; // Links to uploaded files in Google Drive
   createdAt: string; // ISO string format
 }

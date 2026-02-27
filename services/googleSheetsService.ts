@@ -77,14 +77,14 @@ export async function syncToGoogleSheets(data: {
         "Advocate": data.advocates.find(a => a.id === c.advocateId)?.name || "Unassigned",
         "Next Hearing": c.nextHearingDate,
         "Remarks": c.advocateComments,
-        "Document URL": c.documentUrl || "",
+        "Document URL": (c.documentUrls || []).map(d => `${d.name}|${d.url}`).join(', '),
         "Created Date": c.createdAt,
         "_id": c.id,
         "_advocateId": c.advocateId,
         "_caseDirection": c.caseDirection,
         "_courseOfAction": c.courseOfAction,
         "_personAppearing": c.personAppearing,
-        "_documentUrl": c.documentUrl || ""
+        "_documentUrls": (c.documentUrls || []).map(d => `${d.name}|${d.url}`).join(', ')
       })),
       advocates: data.advocates.map(adv => ({
         "Advocate Name": adv.name,
@@ -121,15 +121,16 @@ export async function syncToGoogleSheets(data: {
   }
 }
 
-export async function uploadFileToDrive(file: File, partyName: string): Promise<string> {
+export async function uploadFileToDrive(file: File, partyName: string): Promise<{ name: string, url: string }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async () => {
       try {
         const base64 = (reader.result as string).split(',')[1];
+        const fileName = `${partyName}_${file.name}`;
         const payload = {
           action: "upload",
-          fileName: `${partyName}_${file.name}`,
+          fileName: fileName,
           mimeType: file.type,
           data: base64,
           folderId: "1_w95EC53rQCz5m8G2_OfH4xlWA1hfqnV"
@@ -154,7 +155,7 @@ export async function uploadFileToDrive(file: File, partyName: string): Promise<
         }
         
         if (result.status === "success") {
-          resolve(result.url);
+          resolve({ name: file.name, url: result.url });
         } else {
           reject(new Error(result.message || "Upload failed on server"));
         }
@@ -251,7 +252,18 @@ export async function loadFromGoogleSheets() {
             personAppearing: String(fuzzyGet(c, ["Person Appearing", "_personAppearing"])) || "",
             advocateComments: String(fuzzyGet(c, ["Remarks", "Comments", "_advocateComments"])) || "",
             feePayments: casePayments,
-            documentUrl: cleanValue(fuzzyGet(c, ["Document URL", "_documentUrl"])) || "",
+            documentUrls: (cleanValue(fuzzyGet(c, ["Document URL", "_documentUrls", "_documentUrl"])) || "")
+                .split(',')
+                .map((s: string) => {
+                    const parts = s.trim().split('|');
+                    if (parts.length >= 2) {
+                        return { name: parts[0], url: parts.slice(1).join('|') };
+                    } else if (s.trim()) {
+                        return { name: "Document", url: s.trim() };
+                    }
+                    return null;
+                })
+                .filter(Boolean) as any[],
             createdAt: safeDate(fuzzyGet(c, ["Created Date", "Created"]))
         };
     });

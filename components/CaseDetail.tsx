@@ -47,23 +47,28 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes,
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !caseData) return;
+    const files = e.target.files;
+    if (!files || files.length === 0 || !caseData) return;
 
     setIsUploading(true);
     try {
-      const url = await uploadFileToDrive(file, caseData.partyName);
+      const uploadedDocs: { name: string, url: string }[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const doc = await uploadFileToDrive(files[i], caseData.partyName);
+        uploadedDocs.push(doc);
+      }
       const updatedCase: Case = {
         ...caseData,
-        documentUrl: url
+        documentUrls: [...(caseData.documentUrls || []), ...uploadedDocs]
       };
       onSave(updatedCase);
-      alert('File uploaded successfully!');
+      alert(`${files.length} file(s) uploaded successfully!`);
     } catch (error: any) {
       console.error('Upload failed:', error);
       alert(`Upload failed: ${error.message || 'Unknown error'}. Please ensure your Apps Script is deployed as a Web App with 'Anyone' access and you have used the correct Script URL.`);
     } finally {
       setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
   
@@ -116,53 +121,82 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes,
       </div>
 
       <Section title="Documents">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
-          <div className="flex-1">
-            {caseData.documentUrl ? (
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded">
-                  <FileIcon className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Case Document</p>
-                  <a 
-                    href={caseData.documentUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline font-bold flex items-center gap-1"
-                  >
-                    View / Download from Drive
-                    <ArrowUpRightIcon className="h-3 w-3" />
-                  </a>
-                </div>
-              </div>
-            ) : (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
+            <div className="flex-1">
               <div className="flex items-center gap-3 text-slate-500">
                 <CloudIcon className="h-6 w-6" />
-                <p className="text-sm">No documents uploaded for this case.</p>
+                <p className="text-sm">Upload additional documents for this case.</p>
               </div>
-            )}
+            </div>
+            
+            <div>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+                className="hidden" 
+                multiple
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                  isUploading 
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {isUploading ? 'Uploading...' : 'Upload Files'}
+              </button>
+            </div>
           </div>
-          
-          <div>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileUpload} 
-              className="hidden" 
-            />
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                isUploading 
-                ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-            >
-              {isUploading ? 'Uploading...' : (caseData.documentUrl ? 'Replace File' : 'Upload File')}
-            </button>
-          </div>
+
+          {caseData.documentUrls && caseData.documentUrls.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {caseData.documentUrls.map((doc, index) => (
+                <div key={index} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center gap-3 truncate mr-4">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded flex-shrink-0">
+                      <FileIcon className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="truncate">
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate" title={doc.name}>
+                        {doc.name}
+                      </p>
+                      <a 
+                        href={doc.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline font-bold flex items-center gap-1"
+                      >
+                        View / Download
+                        <ArrowUpRightIcon className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      if (window.confirm('Remove this document?')) {
+                        const updatedCase = {
+                          ...caseData,
+                          documentUrls: (caseData.documentUrls || []).filter((_, i) => i !== index)
+                        };
+                        onSave(updatedCase);
+                      }
+                    }}
+                    className="text-red-500 hover:text-red-700 p-2"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-500">
+              <p className="text-sm">No documents uploaded for this case.</p>
+            </div>
+          )}
         </div>
       </Section>
 

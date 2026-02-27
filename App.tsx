@@ -113,7 +113,7 @@ const App: React.FC = () => {
       } finally {
         setIsSyncing(false);
       }
-    }, 2000); 
+    }, 1000); 
 
     return () => {
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);

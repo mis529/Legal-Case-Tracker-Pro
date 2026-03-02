@@ -87,11 +87,24 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes,
   const directionText = caseData.caseDirection === 'Plaintiff' ? 'You vs. Others' : 'Others vs. You';
   const directionColor = caseData.caseDirection === 'Plaintiff' ? 'text-green-500' : 'text-red-500';
 
+  const statusColors = {
+    'Ongoing': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    'Closed - Win': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+    'Closed - Loss': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+  };
+
+  const status = caseData.status || 'Ongoing';
+
   return (
     <div className="bg-white dark:bg-slate-800/50 p-6 sm:p-8 rounded-2xl shadow-lg animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{caseData.partyName}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{caseData.partyName}</h2>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusColors[status as keyof typeof statusColors] || statusColors['Ongoing']}`}>
+              {status}
+            </span>
+          </div>
           <p className="mt-1 text-slate-500 dark:text-slate-400">{caseTypeName}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

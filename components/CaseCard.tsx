@@ -39,6 +39,15 @@ const CaseCard: React.FC<CaseCardProps> = ({ caseData, caseTypes, onSelectCase }
 
   const caseTypeName = caseTypes.find(ct => ct.id === caseData.caseTypeId)?.name || 'Unknown Type';
 
+  const statusColors = {
+    'Ongoing': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+    'Closed - Win': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    'Closed - Loss': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+  };
+
+  const status = caseData.status || 'Ongoing';
+  const isClosed = status.startsWith('Closed');
+
   return (
     <motion.div
       layout
@@ -46,17 +55,24 @@ const CaseCard: React.FC<CaseCardProps> = ({ caseData, caseTypes, onSelectCase }
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
       onClick={() => onSelectCase(caseData.id)}
-      className="bg-white dark:bg-slate-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer border border-transparent hover:border-blue-500 overflow-hidden"
+      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer border border-transparent hover:border-blue-500 overflow-hidden ${isClosed ? 'opacity-75 grayscale-[0.3]' : ''}`}
     >
       <div className="p-6">
         <div className="flex justify-between items-start">
-            <span className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">
-                {caseTypeName}
-            </span>
-            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md ${dateBadgeColor}`}>
-              <Calendar className="h-4 w-4" />
-              {dateText}
-            </span>
+            <div className="flex flex-wrap gap-2">
+                <span className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                    {caseTypeName}
+                </span>
+                <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusColors[status as keyof typeof statusColors] || statusColors['Ongoing']}`}>
+                    {status}
+                </span>
+            </div>
+            {!isClosed && (
+              <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md ${dateBadgeColor}`}>
+                <Calendar className="h-4 w-4" />
+                {dateText}
+              </span>
+            )}
         </div>
         <div className="flex items-center gap-2 mt-4">
              <DirectionIcon className={`h-5 w-5 ${directionColor}`} />

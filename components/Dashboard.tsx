@@ -15,8 +15,8 @@ interface DashboardProps {
   onAddCaseType: (name: string) => void;
   onSelectCase: (caseId: string) => void;
   onNewCase: () => void;
-  filters: { caseTypeId: string; courtName: string; caseDirection: string; advocateId: string; hearingDate: string; };
-  onFilterChange: React.Dispatch<React.SetStateAction<{ caseTypeId: string; courtName: string; caseDirection: string; advocateId: string; hearingDate: string; }>>;
+  filters: { caseTypeId: string; courtName: string; caseDirection: string; advocateId: string; hearingDate: string; status: string; };
+  onFilterChange: React.Dispatch<React.SetStateAction<{ caseTypeId: string; courtName: string; caseDirection: string; advocateId: string; hearingDate: string; status: string; }>>;
 }
 
 const FilterSelect: React.FC<{ label: string; value: string; onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void; children: React.ReactNode }> = ({ label, value, onChange, children }) => (
@@ -39,13 +39,29 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
     return allCases.reduce((sum, c) => sum + c.feePayments.reduce((pSum, p) => pSum + p.amount, 0), 0);
   }, [allCases]);
 
-  const handleFilter = (filterName: 'caseTypeId' | 'courtName' | 'caseDirection' | 'advocateId' | 'hearingDate') => (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
+  const handleFilter = (filterName: 'caseTypeId' | 'courtName' | 'caseDirection' | 'advocateId' | 'hearingDate' | 'status') => (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     onFilterChange(prev => ({...prev, [filterName]: e.target.value }));
   }
 
   const resetFilters = () => {
-      onFilterChange({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All', advocateId: 'All', hearingDate: '' });
+      onFilterChange({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All', advocateId: 'All', hearingDate: '', status: 'Ongoing' });
   };
+
+  const isArchiveView = filters.status.startsWith('Closed');
+
+  const setView = (view: 'ongoing' | 'archive') => {
+      onFilterChange(prev => ({ 
+          ...prev, 
+          status: view === 'ongoing' ? 'Ongoing' : 'Closed - Win' 
+      }));
+  };
+
+  const filteredByView = useMemo(() => {
+    if (isArchiveView) {
+        return cases.filter(c => c.status.startsWith('Closed'));
+    }
+    return cases.filter(c => c.status === 'Ongoing');
+  }, [cases, isArchiveView]);
 
   const sortedCourtList = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -91,7 +107,15 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
       return counts;
   }, [allCases]);
 
-  const hasActiveFilters = filters.caseTypeId !== 'All' || filters.courtName !== 'All' || filters.caseDirection !== 'All' || filters.advocateId !== 'All' || filters.hearingDate !== '';
+  const statusCounts = useMemo(() => {
+      const counts: Record<string, number> = { 'Ongoing': 0, 'Closed - Win': 0, 'Closed - Loss': 0 };
+      allCases.forEach(c => {
+          counts[c.status] = (counts[c.status] || 0) + 1;
+      });
+      return counts;
+  }, [allCases]);
+
+  const hasActiveFilters = filters.caseTypeId !== 'All' || filters.courtName !== 'All' || filters.caseDirection !== 'All' || filters.advocateId !== 'All' || filters.hearingDate !== '' || filters.status !== 'All';
 
   return (
     <motion.div 
@@ -108,7 +132,7 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
           </div>
           <div className="mt-1 flex items-center gap-3">
             <p className="text-slate-500 dark:text-slate-400">
-              Showing {cases.length} of {allCases.length} total cases.
+              Showing {filteredByView.length} of {allCases.length} total cases.
             </p>
             <div className="flex items-center gap-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded text-xs font-bold">
                 <MoneyIcon className="h-3 w-3" />
@@ -116,13 +140,29 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
             </div>
           </div>
         </div>
-        <button
-          onClick={onNewCase}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition-all active:scale-95"
-        >
-          <PlusIcon className="h-5 w-5" />
-          New Case
-        </button>
+        <div className="flex items-center gap-3">
+            <div className="flex bg-slate-200 dark:bg-slate-700 p-1 rounded-lg">
+                <button
+                    onClick={() => setView('ongoing')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${!isArchiveView ? 'bg-white dark:bg-slate-600 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                    Ongoing
+                </button>
+                <button
+                    onClick={() => setView('archive')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${isArchiveView ? 'bg-white dark:bg-slate-600 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                    Archive
+                </button>
+            </div>
+            <button
+              onClick={onNewCase}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition-all active:scale-95"
+            >
+              <PlusIcon className="h-5 w-5" />
+              New Case
+            </button>
+        </div>
       </div>
 
       <div className="p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm space-y-4">
@@ -160,6 +200,18 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
                  <option value="Defendant">Defendant ({directionCounts['Defendant']})</option>
               </FilterSelect>
 
+              <FilterSelect label="Case Status" value={filters.status} onChange={handleFilter('status')}>
+                 {isArchiveView ? (
+                    <>
+                        <option value="All">All Closed ({statusCounts['Closed - Win'] + statusCounts['Closed - Loss']})</option>
+                        <option value="Closed - Win">Closed - Win ({statusCounts['Closed - Win']})</option>
+                        <option value="Closed - Loss">Closed - Loss ({statusCounts['Closed - Loss']})</option>
+                    </>
+                 ) : (
+                    <option value="Ongoing">Ongoing ({statusCounts['Ongoing']})</option>
+                 )}
+              </FilterSelect>
+
               <div className="flex flex-col gap-1 w-full sm:w-auto">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
                       Hearing Date
@@ -184,7 +236,7 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
           </div>
       </div>
 
-      <CaseList cases={cases} caseTypes={caseTypes} onSelectCase={onSelectCase} />
+      <CaseList cases={filteredByView} caseTypes={caseTypes} onSelectCase={onSelectCase} />
     </motion.div>
   );
 };

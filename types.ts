@@ -38,5 +38,6 @@ export interface Case {
   advocateComments: string;
   feePayments: FeePayment[];
   documentUrls?: CaseDocument[]; // Links to uploaded files in Google Drive
+  status: 'Ongoing' | 'Closed - Win' | 'Closed - Loss';
   createdAt: string; // ISO string format
 }

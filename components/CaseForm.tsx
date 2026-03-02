@@ -40,7 +40,10 @@ const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { label: 
 );
 
 const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, courtNames, onSave, onCancel, onAddCaseType }) => {
-    const [formData, setFormData] = useState<Omit<Case, 'id' | 'createdAt'>>(() => initialData ? { ...initialData } : {
+    const [formData, setFormData] = useState<Omit<Case, 'id' | 'createdAt'>>(() => initialData ? { 
+        ...initialData,
+        status: initialData.status || 'Ongoing'
+    } : {
         partyName: '',
         caseTypeId: caseTypes[0]?.id || '',
         courtName: '',
@@ -52,6 +55,7 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
         advocateComments: '',
         feePayments: [],
         documentUrls: [],
+        status: 'Ongoing',
     });
     
     const [isSuggesting, setIsSuggesting] = useState(false);
@@ -242,6 +246,11 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
                  <Select label="Case Direction" name="caseDirection" value={formData.caseDirection} onChange={handleChange} required>
                     <option value="Plaintiff">Plaintiff (You initiated)</option>
                     <option value="Defendant">Defendant (Against you)</option>
+                </Select>
+                <Select label="Case Status" name="status" value={formData.status} onChange={handleChange} required>
+                    <option value="Ongoing">Ongoing</option>
+                    <option value="Closed - Win">Closed - Win</option>
+                    <option value="Closed - Loss">Closed - Loss</option>
                 </Select>
                 <div className="md:col-span-2">
                     <Input label="Person Appearing" name="personAppearing" value={formData.personAppearing} onChange={handleChange} />

@@ -48,7 +48,13 @@ const App: React.FC = () => {
   const [cases, setCases] = useState<Case[]>(() => {
     try {
         const saved = localStorage.getItem('cases');
-        return saved ? JSON.parse(saved) : [];
+        if (!saved) return [];
+        const parsed = JSON.parse(saved);
+        // Migration: Ensure all cases have a status
+        return (parsed as Case[]).map(c => ({
+          ...c,
+          status: c.status || 'Ongoing'
+        }));
     } catch {
         return [];
     }
@@ -127,7 +133,7 @@ const App: React.FC = () => {
   const [isCreatingNewAdvocate, setIsCreatingNewAdvocate] = useState<boolean>(false);
   const [editingAdvocate, setEditingAdvocate] = useState<Advocate | null>(null);
 
-  const [filters, setFilters] = useState({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All', advocateId: 'All', hearingDate: '' });
+  const [filters, setFilters] = useState({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All', advocateId: 'All', hearingDate: '', status: 'Ongoing' });
 
   const handleSelectCase = useCallback((caseId: string) => {
     setActiveCaseId(caseId);
@@ -246,6 +252,7 @@ const App: React.FC = () => {
       const matchesCourt = filters.courtName === 'All' || c.courtName === filters.courtName;
       const matchesDirection = filters.caseDirection === 'All' || c.caseDirection === filters.caseDirection;
       const matchesAdvocate = filters.advocateId === 'All' || c.advocateId === filters.advocateId;
+      const matchesStatus = filters.status === 'All' || c.status === filters.status;
       
       let matchesDate = true;
       if (filters.hearingDate) {
@@ -253,7 +260,7 @@ const App: React.FC = () => {
         matchesDate = caseDate === filters.hearingDate;
       }
       
-      return matchesType && matchesCourt && matchesDirection && matchesAdvocate && matchesDate;
+      return matchesType && matchesCourt && matchesDirection && matchesAdvocate && matchesDate && matchesStatus;
     });
   }, [cases, filters]);
 

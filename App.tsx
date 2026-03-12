@@ -50,11 +50,14 @@ const App: React.FC = () => {
         const saved = localStorage.getItem('cases');
         if (!saved) return [];
         const parsed = JSON.parse(saved);
-        // Migration: Ensure all cases have a status
-        return (parsed as Case[]).map(c => ({
-          ...c,
-          status: c.status || 'Ongoing'
-        }));
+        // Migration: Ensure all cases have a status and map old closed statuses to new one
+        return (parsed as Case[]).map(c => {
+          let status = (c as any).status || 'Ongoing';
+          if (status === 'Closed - Win' || status === 'Closed - Loss') {
+            status = 'Closed';
+          }
+          return { ...c, status: status as 'Ongoing' | 'Closed' };
+        });
     } catch {
         return [];
     }

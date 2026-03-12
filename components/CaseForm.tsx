@@ -56,6 +56,7 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
         feePayments: [],
         documentUrls: [],
         status: 'Ongoing',
+        closingDate: '',
     });
     
     const [isSuggesting, setIsSuggesting] = useState(false);
@@ -249,9 +250,18 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
                 </Select>
                 <Select label="Case Status" name="status" value={formData.status} onChange={handleChange} required>
                     <option value="Ongoing">Ongoing</option>
-                    <option value="Closed - Win">Closed - Win</option>
-                    <option value="Closed - Loss">Closed - Loss</option>
+                    <option value="Closed">Closed</option>
                 </Select>
+                {formData.status === 'Closed' && (
+                    <Input 
+                        label="Closing Date" 
+                        name="closingDate" 
+                        type="date" 
+                        value={formData.closingDate ? new Date(formData.closingDate).toISOString().split('T')[0] : ''} 
+                        onChange={handleDateChange} 
+                        required 
+                    />
+                )}
                 <div className="md:col-span-2">
                     <Input label="Person Appearing" name="personAppearing" value={formData.personAppearing} onChange={handleChange} />
                 </div>

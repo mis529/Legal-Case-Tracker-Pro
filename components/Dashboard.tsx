@@ -47,18 +47,18 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
       onFilterChange({ caseTypeId: 'All', courtName: 'All', caseDirection: 'All', advocateId: 'All', hearingDate: '', status: 'Ongoing' });
   };
 
-  const isArchiveView = filters.status.startsWith('Closed');
+  const isArchiveView = filters.status === 'Closed';
 
   const setView = (view: 'ongoing' | 'archive') => {
       onFilterChange(prev => ({ 
           ...prev, 
-          status: view === 'ongoing' ? 'Ongoing' : 'Closed - Win' 
+          status: view === 'ongoing' ? 'Ongoing' : 'Closed' 
       }));
   };
 
   const filteredByView = useMemo(() => {
     if (isArchiveView) {
-        return cases.filter(c => c.status.startsWith('Closed'));
+        return cases.filter(c => c.status === 'Closed');
     }
     return cases.filter(c => c.status === 'Ongoing');
   }, [cases, isArchiveView]);
@@ -108,7 +108,7 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
   }, [allCases]);
 
   const statusCounts = useMemo(() => {
-      const counts: Record<string, number> = { 'Ongoing': 0, 'Closed - Win': 0, 'Closed - Loss': 0 };
+      const counts: Record<string, number> = { 'Ongoing': 0, 'Closed': 0 };
       allCases.forEach(c => {
           counts[c.status] = (counts[c.status] || 0) + 1;
       });
@@ -202,11 +202,7 @@ const Dashboard: React.FC<DashboardProps> = ({ cases, allCases, caseTypes, court
 
               <FilterSelect label="Case Status" value={filters.status} onChange={handleFilter('status')}>
                  {isArchiveView ? (
-                    <>
-                        <option value="All">All Closed ({statusCounts['Closed - Win'] + statusCounts['Closed - Loss']})</option>
-                        <option value="Closed - Win">Closed - Win ({statusCounts['Closed - Win']})</option>
-                        <option value="Closed - Loss">Closed - Loss ({statusCounts['Closed - Loss']})</option>
-                    </>
+                    <option value="Closed">Closed ({statusCounts['Closed']})</option>
                  ) : (
                     <option value="Ongoing">Ongoing ({statusCounts['Ongoing']})</option>
                  )}

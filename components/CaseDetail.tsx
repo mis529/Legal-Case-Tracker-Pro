@@ -89,8 +89,7 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes,
 
   const statusColors = {
     'Ongoing': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-    'Closed - Win': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-    'Closed - Loss': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+    'Closed': 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'
   };
 
   const status = caseData.status || 'Ongoing';
@@ -124,6 +123,9 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes,
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
         <InfoCard icon={<CalendarIcon/>} label="Next Hearing" value={new Date(caseData.nextHearingDate).toLocaleDateString()} />
+        {caseData.status === 'Closed' && caseData.closingDate && (
+            <InfoCard icon={<CalendarIcon/>} label="Closing Date" value={new Date(caseData.closingDate).toLocaleDateString()} />
+        )}
         <InfoCard icon={<GavelIcon />} label="Court" value={caseData.courtName} />
         <InfoCard icon={<UserIcon />} label="Advocate" value={advocate?.name || 'N/A'} />
         <InfoCard 

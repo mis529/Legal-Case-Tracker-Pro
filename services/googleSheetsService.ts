@@ -1,7 +1,7 @@
 
 import { Case, Advocate, CaseType, FeePayment, CaseDirection } from '../types';
 
-const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbzExvIQYIRie4-NB3UVqjpZyuXlDEpONI8OBjTSr7TdsxZXRBvlE-4tR23gBUaWOW1O/exec";
+const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbyDl2lwJRoX5w5Fd3YAOR5KWbtdpIQPKhxpAm8JChVlzTLLnSrHhF-jDCTBVQRlOHy7/exec";
 const GOOGLE_DRIVE_FOLDER_ID = import.meta.env.VITE_GOOGLE_DRIVE_FOLDER_ID || "1nvvnnTuZfMi0exesQvu4554zGVa5WO32";
 
 function cleanValue(val: any): any {
@@ -141,6 +141,7 @@ export async function uploadFileToDrive(file: File, partyName: string): Promise<
           folderId: GOOGLE_DRIVE_FOLDER_ID
         };
 
+        console.log("Attempting upload to folder:", GOOGLE_DRIVE_FOLDER_ID);
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: "POST",
           body: JSON.stringify(payload)

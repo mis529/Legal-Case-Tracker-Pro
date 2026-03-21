@@ -1,7 +1,7 @@
 
 import { Case, Advocate, CaseType, FeePayment, CaseDirection } from '../types';
 
-const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbyDl2lwJRoX5w5Fd3YAOR5KWbtdpIQPKhxpAm8JChVlzTLLnSrHhF-jDCTBVQRlOHy7/exec";
+const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbzfmO7-1d91pdrCqW8va8g1tiADVytIcimQFohDjqXSc03owdvdg-Fzo00tZFqo3gaz/exec";
 const GOOGLE_DRIVE_FOLDER_ID = import.meta.env.VITE_GOOGLE_DRIVE_FOLDER_ID || "1nvvnnTuZfMi0exesQvu4554zGVa5WO32";
 
 function cleanValue(val: any): any {

@@ -1,7 +1,8 @@
 
 import { Case, Advocate, CaseType, FeePayment, CaseDirection } from '../types';
 
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzExvIQYIRie4-NB3UVqjpZyuXlDEpONI8OBjTSr7TdsxZXRBvlE-4tR23gBUaWOW1O/exec";
+const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbzExvIQYIRie4-NB3UVqjpZyuXlDEpONI8OBjTSr7TdsxZXRBvlE-4tR23gBUaWOW1O/exec";
+const GOOGLE_DRIVE_FOLDER_ID = import.meta.env.VITE_GOOGLE_DRIVE_FOLDER_ID || "1_w95EC53rQCz5m8G2_OfH4xlWA1hfqnV";
 
 function cleanValue(val: any): any {
   if (typeof val === 'string') {
@@ -137,7 +138,7 @@ export async function uploadFileToDrive(file: File, partyName: string): Promise<
           fileName: fileName,
           mimeType: file.type,
           data: base64,
-          folderId: "1_w95EC53rQCz5m8G2_OfH4xlWA1hfqnV"
+          folderId: GOOGLE_DRIVE_FOLDER_ID
         };
 
         const response = await fetch(GOOGLE_SCRIPT_URL, {

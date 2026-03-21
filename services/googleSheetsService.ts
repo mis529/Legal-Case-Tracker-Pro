@@ -163,11 +163,11 @@ export async function uploadFileToDrive(file: File, partyName: string): Promise<
         if (result.status === "success") {
           resolve({ name: file.name, url: result.url });
         } else {
-          reject(new Error(result.message || "Upload failed on server"));
+          reject(new Error(`${result.message || "Upload failed"} (Folder ID: ${GOOGLE_DRIVE_FOLDER_ID})`));
         }
       } catch (error: any) {
         console.error("Upload error details:", error);
-        reject(new Error(error.message || "Network error during upload"));
+        reject(new Error(`${error.message || "Network error"} (Folder ID: ${GOOGLE_DRIVE_FOLDER_ID})`));
       }
     };
     reader.onerror = reject;

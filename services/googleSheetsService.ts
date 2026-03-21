@@ -212,27 +212,31 @@ export async function loadFromGoogleSheets() {
     }).filter(Boolean) as Advocate[];
 
     const cloudTypesRows = result.types || [];
+    const rawCases = result.cases || [];
     
-    // Extract unique case types and court names from the Type sheet columns
-    const extractedCaseTypeNames = Array.from(new Set(
-        cloudTypesRows.map((t: any) => fuzzyGet(t, ["Case Type"])).filter(Boolean)
-    )) as string[];
+    // Extract unique case types and court names from the Type sheet columns AND the Cases sheet
+    const extractedCaseTypeNames = Array.from(new Set([
+        ...cloudTypesRows.map((t: any) => fuzzyGet(t, ["Case Type"])),
+        ...rawCases.map((c: any) => fuzzyGet(c, ["Case Type", "Type"]))
+    ].filter(Boolean))) as string[];
     
-    const extractedCourtNames = Array.from(new Set(
-        cloudTypesRows.map((t: any) => fuzzyGet(t, ["Court Name"])).filter(Boolean)
-    )) as string[];
+    const extractedCourtNames = Array.from(new Set([
+        ...cloudTypesRows.map((t: any) => fuzzyGet(t, ["Court Name"])),
+        ...rawCases.map((c: any) => fuzzyGet(c, ["Court"]))
+    ].filter(Boolean))) as string[];
 
-    const caseTypes: CaseType[] = extractedCaseTypeNames.map((name, idx) => ({
-        id: `ct-${idx}-${name.toLowerCase().replace(/\s+/g, '-')}`,
-        name: name
-    }));
+    const caseTypes: CaseType[] = extractedCaseTypeNames.length > 0 
+        ? extractedCaseTypeNames.map((name, idx) => ({
+            id: `ct-${idx}-${name.toLowerCase().replace(/\s+/g, '-')}`,
+            name: name
+          }))
+        : [{ id: 'ct-general', name: 'General' }];
 
     const paymentsRaw = result.payments || [];
-    const rawCases = result.cases || [];
     const cases: Case[] = rawCases.map((c: any, idx: number) => {
         const partyName = String(fuzzyGet(c, ["Party Name", "Person Name", "Case No", "Case Number"])) || `Row-${idx + 1}`;
         const advName = fuzzyGet(c, ["Advocate"]);
-        const typeName = fuzzyGet(c, ["Case Type", "Type"]) || "General";
+        const typeName = fuzzyGet(c, ["Case Type", "Type"]);
         
         const casePayments: FeePayment[] = paymentsRaw
             .filter((p: any) => String(fuzzyGet(p, ["Party Name", "Case No"])) === partyName)
@@ -244,12 +248,14 @@ export async function loadFromGoogleSheets() {
             }));
 
         const linkedAdvocate = advocates.find(a => a.name.toLowerCase() === String(advName).toLowerCase());
-        const typeObj = caseTypes.find(t => t.name.toLowerCase() === String(typeName).toLowerCase());
+        const typeObj = typeName 
+            ? caseTypes.find(t => t.name.toLowerCase() === String(typeName).toLowerCase())
+            : null;
 
         return {
             id: cleanValue(c._id) || `case-cloud-${partyName}`,
             partyName: partyName,
-            caseTypeId: typeObj?.id || (caseTypes.length > 0 ? caseTypes[0].id : "ct-general"),
+            caseTypeId: typeObj?.id || caseTypes[0].id,
             courtName: String(fuzzyGet(c, ["Court"])) || "Unspecified Court",
             nextHearingDate: safeDate(fuzzyGet(c, ["Next Hearing", "Hearing Date"])),
             courseOfAction: cleanValue(fuzzyGet(c, ["Course of Action", "_courseOfAction"])) || "No action recorded.",

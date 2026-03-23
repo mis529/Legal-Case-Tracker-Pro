@@ -111,20 +111,13 @@ export async function syncToGoogleSheets(data: {
       timestamp: new Date().toISOString()
     });
 
-    console.log("Syncing payload to Google Sheets:", payload.length, "bytes");
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
+    await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
+      mode: "no-cors", 
       cache: "no-cache",
       headers: { "Content-Type": "text/plain" },
       body: payload,
     });
-
-    if (!response.ok) {
-        throw new Error(`Sync failed with status ${response.status}`);
-    }
-
-    const resultText = await response.text();
-    console.log("Sync response:", resultText);
 
     return { status: "success" };
   } catch (error) {
@@ -151,6 +144,7 @@ export async function uploadFileToDrive(file: File, partyName: string): Promise<
         console.log("Attempting upload to folder:", GOOGLE_DRIVE_FOLDER_ID);
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: "POST",
+          headers: { "Content-Type": "text/plain" },
           body: JSON.stringify(payload)
         });
 

@@ -1,7 +1,7 @@
 
 import { Case, Advocate, CaseType, FeePayment, CaseDirection } from '../types';
 
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzExvIQYIRie4-NB3UVqjpZyuXlDEpONI8OBjTSr7TdsxZXRBvlE-4tR23gBUaWOW1O/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfmO7-1d91pdrCqW8va8g1tiADVytIcimQFohDjqXSc03owdvdg-Fzo00tZFqo3gaz/exec";
 
 function cleanValue(val: any): any {
   if (typeof val === 'string') {

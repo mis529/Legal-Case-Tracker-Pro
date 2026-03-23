@@ -139,7 +139,7 @@ export async function uploadFileToDrive(file: File, partyName: string): Promise<
           partyName: partyName,
           mimeType: file.type,
           data: base64,
-          folderId: "1_w95EC53rQCz5m8G2_OfH4xlWA1hfqnV"
+          folderId: "1nvvnnTuZfMi0exesQvu4554zGVa5WO32"
         };
 
         const response = await fetch(GOOGLE_SCRIPT_URL, {

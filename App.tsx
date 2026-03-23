@@ -80,6 +80,7 @@ const App: React.FC = () => {
       const data = await loadFromGoogleSheets();
       
       if (data) {
+        // Temporarily block auto-sync while we populate state from cloud
         isInitialLoadRef.current = true; 
         
         setCases([...(data.cases || [])]);
@@ -94,7 +95,11 @@ const App: React.FC = () => {
         }
         
         setLastSynced(`Updated ${new Date().toLocaleTimeString()}`);
+        // Re-enable auto-sync after state has settled
         setTimeout(() => { isInitialLoadRef.current = false; }, 2000);
+      } else {
+        // If no data or error, ensure auto-sync is enabled for new entries
+        isInitialLoadRef.current = false;
       }
     } catch (error) {
       console.error("Cloud load error:", error);

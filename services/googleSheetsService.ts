@@ -1,8 +1,7 @@
 
 import { Case, Advocate, CaseType, FeePayment, CaseDirection } from '../types';
 
-const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbzfmO7-1d91pdrCqW8va8g1tiADVytIcimQFohDjqXSc03owdvdg-Fzo00tZFqo3gaz/exec";
-const GOOGLE_DRIVE_FOLDER_ID = import.meta.env.VITE_GOOGLE_DRIVE_FOLDER_ID || "1nvvnnTuZfMi0exesQvu4554zGVa5WO32";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzExvIQYIRie4-NB3UVqjpZyuXlDEpONI8OBjTSr7TdsxZXRBvlE-4tR23gBUaWOW1O/exec";
 
 function cleanValue(val: any): any {
   if (typeof val === 'string') {
@@ -136,15 +135,15 @@ export async function uploadFileToDrive(file: File, partyName: string): Promise<
         const payload = {
           action: "upload",
           fileName: fileName,
+          originalFileName: file.name,
+          partyName: partyName,
           mimeType: file.type,
           data: base64,
-          folderId: GOOGLE_DRIVE_FOLDER_ID
+          folderId: "1_w95EC53rQCz5m8G2_OfH4xlWA1hfqnV"
         };
 
-        console.log("Attempting upload to folder:", GOOGLE_DRIVE_FOLDER_ID);
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: "POST",
-          headers: { "Content-Type": "text/plain" },
           body: JSON.stringify(payload)
         });
 
@@ -164,11 +163,11 @@ export async function uploadFileToDrive(file: File, partyName: string): Promise<
         if (result.status === "success") {
           resolve({ name: file.name, url: result.url });
         } else {
-          reject(new Error(`${result.message || "Upload failed"} (Folder ID: ${GOOGLE_DRIVE_FOLDER_ID})`));
+          reject(new Error(result.message || "Upload failed on server"));
         }
       } catch (error: any) {
         console.error("Upload error details:", error);
-        reject(new Error(`${error.message || "Network error"} (Folder ID: ${GOOGLE_DRIVE_FOLDER_ID})`));
+        reject(new Error(error.message || "Network error during upload"));
       }
     };
     reader.onerror = reject;
@@ -213,31 +212,27 @@ export async function loadFromGoogleSheets() {
     }).filter(Boolean) as Advocate[];
 
     const cloudTypesRows = result.types || [];
-    const rawCases = result.cases || [];
     
-    // Extract unique case types and court names from the Type sheet columns AND the Cases sheet
-    const extractedCaseTypeNames = Array.from(new Set([
-        ...cloudTypesRows.map((t: any) => fuzzyGet(t, ["Case Type"])),
-        ...rawCases.map((c: any) => fuzzyGet(c, ["Case Type", "Type"]))
-    ].filter(Boolean))) as string[];
+    // Extract unique case types and court names from the Type sheet columns
+    const extractedCaseTypeNames = Array.from(new Set(
+        cloudTypesRows.map((t: any) => fuzzyGet(t, ["Case Type"])).filter(Boolean)
+    )) as string[];
     
-    const extractedCourtNames = Array.from(new Set([
-        ...cloudTypesRows.map((t: any) => fuzzyGet(t, ["Court Name"])),
-        ...rawCases.map((c: any) => fuzzyGet(c, ["Court"]))
-    ].filter(Boolean))) as string[];
+    const extractedCourtNames = Array.from(new Set(
+        cloudTypesRows.map((t: any) => fuzzyGet(t, ["Court Name"])).filter(Boolean)
+    )) as string[];
 
-    const caseTypes: CaseType[] = extractedCaseTypeNames.length > 0 
-        ? extractedCaseTypeNames.map((name, idx) => ({
-            id: `ct-${idx}-${name.toLowerCase().replace(/\s+/g, '-')}`,
-            name: name
-          }))
-        : [{ id: 'ct-general', name: 'General' }];
+    const caseTypes: CaseType[] = extractedCaseTypeNames.map((name, idx) => ({
+        id: `ct-${idx}-${name.toLowerCase().replace(/\s+/g, '-')}`,
+        name: name
+    }));
 
     const paymentsRaw = result.payments || [];
+    const rawCases = result.cases || [];
     const cases: Case[] = rawCases.map((c: any, idx: number) => {
         const partyName = String(fuzzyGet(c, ["Party Name", "Person Name", "Case No", "Case Number"])) || `Row-${idx + 1}`;
         const advName = fuzzyGet(c, ["Advocate"]);
-        const typeName = fuzzyGet(c, ["Case Type", "Type"]);
+        const typeName = fuzzyGet(c, ["Case Type", "Type"]) || "General";
         
         const casePayments: FeePayment[] = paymentsRaw
             .filter((p: any) => String(fuzzyGet(p, ["Party Name", "Case No"])) === partyName)
@@ -249,14 +244,12 @@ export async function loadFromGoogleSheets() {
             }));
 
         const linkedAdvocate = advocates.find(a => a.name.toLowerCase() === String(advName).toLowerCase());
-        const typeObj = typeName 
-            ? caseTypes.find(t => t.name.toLowerCase() === String(typeName).toLowerCase())
-            : null;
+        const typeObj = caseTypes.find(t => t.name.toLowerCase() === String(typeName).toLowerCase());
 
         return {
             id: cleanValue(c._id) || `case-cloud-${partyName}`,
             partyName: partyName,
-            caseTypeId: typeObj?.id || caseTypes[0].id,
+            caseTypeId: typeObj?.id || (caseTypes.length > 0 ? caseTypes[0].id : "ct-general"),
             courtName: String(fuzzyGet(c, ["Court"])) || "Unspecified Court",
             nextHearingDate: safeDate(fuzzyGet(c, ["Next Hearing", "Hearing Date"])),
             courseOfAction: cleanValue(fuzzyGet(c, ["Course of Action", "_courseOfAction"])) || "No action recorded.",

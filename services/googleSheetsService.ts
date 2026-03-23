@@ -88,7 +88,7 @@ export async function syncToGoogleSheets(data: {
         "_closingDate": c.closingDate || "",
         "_courseOfAction": c.courseOfAction,
         "_personAppearing": c.personAppearing,
-        "_documentUrls": (c.documentUrls || []).map(d => `${d.name}|${d.url}`).join(', ')
+        "Drive Links": (c.documentUrls || []).map(d => `${d.name}|${d.url}`).join(', ')
       })),
       advocates: data.advocates.map(adv => ({
         "Advocate Name": adv.name,
@@ -260,7 +260,7 @@ export async function loadFromGoogleSheets() {
             personAppearing: String(fuzzyGet(c, ["Person Appearing", "_personAppearing"])) || "",
             advocateComments: String(fuzzyGet(c, ["Remarks", "Comments", "_advocateComments"])) || "",
             feePayments: casePayments,
-            documentUrls: (cleanValue(fuzzyGet(c, ["Document URL", "_documentUrls", "_documentUrl"])) || "")
+            documentUrls: (cleanValue(fuzzyGet(c, ["Drive Links", "Document URL", "_documentUrls", "_documentUrl"])) || "")
                 .split(',')
                 .map((s: string) => {
                     const parts = s.trim().split('|');

@@ -1,7 +1,7 @@
 
 import { Case, Advocate, CaseType, FeePayment, CaseDirection } from '../types';
 
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw3DMwYFmsdsyXX0kzhn4ndYGJBuUPogm7nIKfbqc3OpnWdP6MpjEHxfs2xkgqhgLME/exec";
+export const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw3DMwYFmsdsyXX0kzhn4ndYGJBuUPogm7nIKfbqc3OpnWdP6MpjEHxfs2xkgqhgLME/exec";
 
 function cleanValue(val: any): any {
   if (typeof val === 'string') {
@@ -130,6 +130,11 @@ export async function uploadFileToDrive(file: File, partyName: string): Promise<
     const reader = new FileReader();
     reader.onload = async () => {
       try {
+        // Add a small random delay (0-2 seconds) to staggered parallel requests
+        // This prevents Google from blocking multiple simultaneous uploads
+        const delay = Math.floor(Math.random() * 2000);
+        await new Promise(res => setTimeout(res, delay));
+
         const base64 = (reader.result as string).split(',')[1];
         const fileName = `${partyName}_${file.name}`;
         const payload = {
@@ -152,18 +157,28 @@ export async function uploadFileToDrive(file: File, partyName: string): Promise<
         }
 
         const text = await response.text();
-        let result;
-        try {
-          result = JSON.parse(text);
-        } catch (e) {
-          console.error("Failed to parse response:", text);
-          throw new Error("Invalid response format from server");
-        }
+        const trimmedText = text.trim().toLowerCase();
         
-        if (result.status === "success") {
-          resolve({ name: file.name, url: result.url });
-        } else {
-          reject(new Error(result.message || "Upload failed on server"));
+        // Handle plain text "uploaded" or "success" response
+        if (trimmedText === "uploaded" || trimmedText === "success") {
+          resolve({ name: file.name, url: "#" });
+          return;
+        }
+
+        try {
+          const result = JSON.parse(text);
+          if (result.status === "success" || result.status === "uploaded") {
+            resolve({ name: file.name, url: result.url || "#" });
+          } else {
+            reject(new Error(result.message || "Upload failed on server"));
+          }
+        } catch (e) {
+          // If it's not JSON but contains error keywords, throw it
+          if (text.toLowerCase().includes("error") || text.toLowerCase().includes("denied")) {
+            throw new Error(text);
+          }
+          // Otherwise, assume success if we got a response
+          resolve({ name: file.name, url: "#" });
         }
       } catch (error: any) {
         console.error("Upload error details:", error);

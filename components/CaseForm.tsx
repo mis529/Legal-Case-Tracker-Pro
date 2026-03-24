@@ -102,11 +102,9 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
 
         setIsUploading(true);
         try {
-            const uploadedDocs: { name: string, url: string }[] = [];
-            for (let i = 0; i < files.length; i++) {
-                const doc = await uploadFileToDrive(files[i], formData.partyName);
-                uploadedDocs.push(doc);
-            }
+            const uploadPromises = Array.from(files).map(file => uploadFileToDrive(file, formData.partyName));
+            const uploadedDocs = await Promise.all(uploadPromises);
+            
             setFormData(prev => ({ 
                 ...prev, 
                 documentUrls: [...(prev.documentUrls || []), ...uploadedDocs] 

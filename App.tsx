@@ -7,7 +7,7 @@ import CaseDetail from './components/CaseDetail';
 import AdvocateDashboard from './components/AdvocateDashboard';
 import AdvocateDetail from './components/AdvocateDetail';
 import AdvocateForm from './components/AdvocateForm';
-import { syncToGoogleSheets, loadFromGoogleSheets } from './services/googleSheetsService';
+import { syncToGoogleSheets, loadFromGoogleSheets, GOOGLE_SCRIPT_URL } from './services/googleSheetsService';
 import { motion, AnimatePresence } from 'motion/react';
 
 const App: React.FC = () => {

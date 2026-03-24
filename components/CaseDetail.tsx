@@ -52,11 +52,9 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, advocates, caseTypes,
 
     setIsUploading(true);
     try {
-      const uploadedDocs: { name: string, url: string }[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const doc = await uploadFileToDrive(files[i], caseData.partyName);
-        uploadedDocs.push(doc);
-      }
+      const uploadPromises = Array.from(files).map(file => uploadFileToDrive(file, caseData.partyName));
+      const uploadedDocs = await Promise.all(uploadPromises);
+      
       const updatedCase: Case = {
         ...caseData,
         documentUrls: [...(caseData.documentUrls || []), ...uploadedDocs]

@@ -122,6 +122,19 @@ const App: React.FC = () => {
     }
   }, [cases, advocates, caseTypes, courtNames]);
 
+  const handleTestConnection = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=test&t=${Date.now()}`);
+      const text = await response.text();
+      alert(`Script Response: ${text.substring(0, 100)}...`);
+    } catch (error: any) {
+      alert(`Connection Failed: ${error.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
   useEffect(() => {
     handleCloudLoad(true);
   }, [handleCloudLoad]);
@@ -297,6 +310,7 @@ const App: React.FC = () => {
         onExport={handleExport}
         onCloudLoad={() => handleCloudLoad(false)}
         onCloudSync={handleCloudSync}
+        onTestConnection={handleTestConnection}
         isSyncing={isSyncing}
         lastSynced={lastSynced}
         totalCases={cases.length}

@@ -10,6 +10,7 @@ interface HeaderProps {
     onExport: () => void;
     onCloudLoad: () => void;
     onCloudSync: () => void;
+    onTestConnection: () => void;
     isSyncing: boolean;
     lastSynced: string | null;
     totalCases: number;
@@ -30,7 +31,7 @@ const NavButton: React.FC<{ isActive: boolean; onClick: () => void; icon: React.
 );
 
 
-const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect, onExport, onCloudLoad, onCloudSync, isSyncing, lastSynced, totalCases }) => {
+const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect, onExport, onCloudLoad, onCloudSync, onTestConnection, isSyncing, lastSynced, totalCases }) => {
   const handleViewChange = (view: 'cases' | 'advocates') => {
     // FIX: Renamed 'onDeslect' to 'onDeselect' to fix the compilation error.
     onDeselect();
@@ -89,6 +90,13 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
                         </span>
                     )}
                 </div>
+                <button 
+                    onClick={onTestConnection}
+                    className="p-2 rounded-full text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                    title="Test Script Connection"
+                >
+                    <RefreshCw className="h-5 w-5" />
+                </button>
                 <button 
                     onClick={onCloudSync}
                     disabled={isSyncing}

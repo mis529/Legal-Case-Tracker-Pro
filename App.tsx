@@ -109,6 +109,19 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleCloudSync = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      await syncToGoogleSheets({ cases, advocates, caseTypes, courtNames });
+      setLastSynced(`Saved ${new Date().toLocaleTimeString()}`);
+    } catch (error) {
+      console.error("Manual sync error:", error);
+      alert("Failed to sync data to cloud. Please check your connection.");
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [cases, advocates, caseTypes, courtNames]);
+
   useEffect(() => {
     handleCloudLoad(true);
   }, [handleCloudLoad]);
@@ -283,6 +296,7 @@ const App: React.FC = () => {
         onDeselect={handleDeselect}
         onExport={handleExport}
         onCloudLoad={() => handleCloudLoad(false)}
+        onCloudSync={handleCloudSync}
         isSyncing={isSyncing}
         lastSynced={lastSynced}
         totalCases={cases.length}

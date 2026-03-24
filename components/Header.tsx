@@ -9,6 +9,7 @@ interface HeaderProps {
     onDeselect: () => void;
     onExport: () => void;
     onCloudLoad: () => void;
+    onCloudSync: () => void;
     isSyncing: boolean;
     lastSynced: string | null;
     totalCases: number;
@@ -29,7 +30,7 @@ const NavButton: React.FC<{ isActive: boolean; onClick: () => void; icon: React.
 );
 
 
-const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect, onExport, onCloudLoad, isSyncing, lastSynced, totalCases }) => {
+const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect, onExport, onCloudLoad, onCloudSync, isSyncing, lastSynced, totalCases }) => {
   const handleViewChange = (view: 'cases' | 'advocates') => {
     // FIX: Renamed 'onDeslect' to 'onDeselect' to fix the compilation error.
     onDeselect();
@@ -88,6 +89,14 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, onDeselect
                         </span>
                     )}
                 </div>
+                <button 
+                    onClick={onCloudSync}
+                    disabled={isSyncing}
+                    className="p-2 rounded-full text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                    title="Force Sync to Cloud"
+                >
+                    <CloudCheck className={`h-5 w-5 ${isSyncing ? 'animate-pulse' : ''}`} />
+                </button>
                 <button 
                     onClick={onCloudLoad}
                     disabled={isSyncing}

@@ -405,7 +405,17 @@ const CaseForm: React.FC<CaseFormProps> = ({ initialData, advocates, caseTypes, 
 
             <div className="flex justify-end gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
                 <button type="button" onClick={onCancel} className="bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 text-slate-800 dark:text-slate-200 font-bold py-2 px-4 rounded-lg">Cancel</button>
-                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Save Case</button>
+                <button 
+                    type="submit" 
+                    disabled={isUploading}
+                    className={`font-bold py-2 px-4 rounded-lg transition-all ${
+                        isUploading 
+                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                >
+                    {isUploading ? 'Uploading...' : 'Save Case'}
+                </button>
             </div>
         </form>
     );

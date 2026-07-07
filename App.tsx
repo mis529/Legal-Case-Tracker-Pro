@@ -16,7 +16,7 @@ const App: React.FC = () => {
       const saved = localStorage.getItem('caseTypes');
       return saved ? JSON.parse(saved) : [
         { id: 'ct1', name: 'Recovery Suit' },
-        { id: 'ct2', name: 'Check Bounce' },
+        { id: 'ct2', name: 'Cheque Bounce' },
         { id: 'ct3', name: 'GST Department' },
         { id: 'ct4', name: 'Custom Department' },
         { id: 'ct5', name: 'Appeal' },
